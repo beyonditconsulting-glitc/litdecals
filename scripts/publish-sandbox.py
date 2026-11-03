@@ -29,6 +29,7 @@ class SiteTitle(HTMLParser):
         self.findrc_links = []
         self.active_link = None
         self.catalog_links = []
+        self.product_links = []
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
         if tag == 'a':
@@ -50,6 +51,8 @@ class SiteTitle(HTMLParser):
     def handle_endtag(self, tag):
         if tag == 'a' and self.active_link is not None:
             text = ' '.join(''.join(self.active_link['text']).split())
+            if '/product/' in self.active_link['href']:
+                self.product_links.append({'text': text, 'href': self.active_link['href']})
             if text.startswith('Browse all products') or text.startswith('View the full catalog'):
                 self.catalog_links.append({'text': text, 'href': self.active_link['href']})
             self.active_link = None
@@ -125,6 +128,19 @@ def main():
             catalog = request(ORIGIN + 'shop/?litdecals_verify=' + revision, wordpress_auth=False).decode('utf-8', 'replace')
             if 'woocommerce-loop-product__title' not in catalog:
                 sys.exit('The catalog destination did not return a WooCommerce product listing.')
+            mafia_html = request(ORIGIN + 'arrma-mafia-shop/?litdecals_verify=' + revision, wordpress_auth=False).decode('utf-8', 'replace')
+            mafia_page = SiteTitle()
+            mafia_page.feed(mafia_html)
+            if not mafia_page.product_links:
+                sys.exit('Mafia page did not return any product links.')
+            unrelated = [link for link in mafia_page.product_links
+                         if 'mafia' not in (link['text'] + ' ' + link['href']).lower()]
+            if unrelated:
+                sys.exit('The Mafia page still contains unrelated product links.')
+            for title in ('RC Lipo Battery Savers', 'Lit Decals Mystery Box', '1:1 Car Door Battery Power Sticker'):
+                if title in mafia_html:
+                    sys.exit('An unrelated example remains on the Mafia page.')
+            print('SUCCESS: Mafia page contains only Mafia product links; unrelated example products are absent.')
             print('SUCCESS: Both catalog buttons point to the sandbox shop and the destination returns products.')
             if not any('aria-haspopup' not in link for link in parser.findrc_links):
                 sys.exit('Direct FINDRC.PARTS navigation link could not be confirmed.')

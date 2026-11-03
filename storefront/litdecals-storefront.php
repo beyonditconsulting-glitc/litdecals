@@ -328,3 +328,22 @@ function litrd_consistent_inner_page_header($document){
  },$document,1);
  return $document;
 }
+
+ 
+// Keep the Mafia landing page focused without changing catalog records or categories.
+function litrd_mafia_page(){
+ return litrd_sandbox() && !is_admin() && is_page('arrma-mafia-shop');
+}
+function litrd_scope_mafia_query($query){
+ if(!litrd_mafia_page() || $query->is_main_query()){return;}
+ if(!in_array('product',(array)$query->get('post_type'),true)){return;}
+ $query->set('litrd_mafia_only',true);
+ $query->set('suppress_filters',false);
+}
+add_action('pre_get_posts','litrd_scope_mafia_query',20);
+function litrd_mafia_products_where($where,$query){
+ if(!litrd_mafia_page() || !$query->get('litrd_mafia_only')){return $where;}
+ global $wpdb;
+ return $where.$wpdb->prepare(" AND {$wpdb->posts}.post_title LIKE %s",'%'.$wpdb->esc_like('mafia').'%');
+}
+add_filter('posts_where','litrd_mafia_products_where',25,2);
