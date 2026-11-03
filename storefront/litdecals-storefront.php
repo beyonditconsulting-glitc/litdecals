@@ -377,8 +377,8 @@ function litrd_repair_browser_auth_header($response,$server,$request){
  if(!function_exists('insert_with_markers')){require_once ABSPATH.'wp-admin/includes/misc.php';}
  $rules=array(
   '<IfModule mod_headers.c>',
-  'Header always unset WWW-Authenticate "expr=%{REQUEST_STATUS} == 200"',
-  'Header onsuccess unset WWW-Authenticate "expr=%{REQUEST_STATUS} == 200"',
+  'Header always unset WWW-Authenticate "expr=-n %{REMOTE_USER}"',
+  'Header onsuccess unset WWW-Authenticate "expr=-n %{REMOTE_USER}"',
   '</IfModule>'
  );
  if(!insert_with_markers($file,'LitDecals Sandbox Successful Authentication',$rules)){$data['auth_header_repair']='configuration_write_failed';$response->set_data($data);return $response;}
