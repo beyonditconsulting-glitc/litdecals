@@ -26,7 +26,7 @@ jobs:
                   return None
           opener = urllib.request.build_opener(NoRedirect())
           origin = "https://litdecals.com/sandbox-redesign/"
-          for path in ("?page_id=120", "shop/", "?post_type=product&s="):
+          for path in ("arrma-mafia-shop/", "product-category/arrma-mafia/", "product-category/arrma-mafia-shop/", "?s=mafia&post_type=product"):
               req = urllib.request.Request(origin + path, headers={"Authorization":"Basic " + auth, "Cache-Control":"no-cache"})
               try:
                   with opener.open(req, timeout=45) as response:
@@ -34,7 +34,8 @@ jobs:
                       titles = [html.unescape(re.sub("<[^>]*>", "", x)).strip() for x in re.findall(r"<h1\b[^>]*>(.*?)</h1>", body, re.S|re.I)]
                       links = re.findall(r'<a\b[^>]*href=["\x27]([^"\x27]+)["\x27][^>]*>\s*(Browse all products|View the full catalog)', body, re.I)
                       results = [html.unescape(re.sub("<[^>]*>", "", x)).strip() for x in re.findall(r'<p\b[^>]*class=["\x27][^"\x27]*woocommerce-result-count[^"\x27]*["\x27][^>]*>(.*?)</p>', body, re.S|re.I)]
-                      print({"results":results})
+                      names = [html.unescape(re.sub("<[^>]*>", "", x)).strip() for x in re.findall(r'<h[23]\b[^>]*class=["\x27][^"\x27]*woocommerce-loop-product__title[^"\x27]*["\x27][^>]*>(.*?)</h[23]>', body, re.S|re.I)]
+                      print({"results":results,"product_names":names})
                       print({"path":path,"status":response.status,"headings":titles[:4],"catalog_links":links,
                              "woo_product_titles":body.count("woocommerce-loop-product__title"),
                              "home_product_cards":body.count('class="litrd-product"'),
