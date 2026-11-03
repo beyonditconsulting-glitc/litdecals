@@ -421,6 +421,12 @@ function litrd_make_storefront_public($response,$server,$request){
  if(is_link($file) || !is_file($file) || !is_readable($file) || !is_writable($file)){$data['public_access']='configuration_not_writable';$response->set_data($data);return $response;}
  $original=file_get_contents($file);
  if($original===false){return $response;}
+ $used_cpanel=false;
+ if($request->get_param('use_cpanel_privacy')===true){
+  $cpanel=litrd_cpanel_directory_privacy(false,'');
+  if(!$cpanel){$data['public_access']='cpanel_api_unavailable_or_failed';$response->set_data($data);return $response;}
+  $used_cpanel=true;
+ }
  $has_basic=(bool)preg_match('/^\s*AuthType\s+Basic\s*$/mi',$original);
  if($has_basic && !preg_match('~^\s*AuthUserFile\b[^\r\n]*/sandbox-redesign/[^\r\n]*$~mi',$original)){
   $data['public_access']='unrecognized_password_configuration';$response->set_data($data);return $response;
@@ -463,6 +469,11 @@ function litrd_make_storefront_public($response,$server,$request){
   update_option('litrd_sandbox_storefront_public',true,false);
   $data['public_access']='verified';
  }else{
+  if($used_cpanel){
+   $authname="Protected 'public_html/sandbox-redesign'";
+   if(preg_match('/^\s*AuthName\s+(.+)$/mi',$original,$match)){$authname=trim($match[1]," \t\r\n\"'");}
+   litrd_cpanel_directory_privacy(true,$authname);
+  }
   $restored=file_put_contents($file,$original,LOCK_EX)===strlen($original);
   $data['public_access']=$restored?'rolled_back':'restore_failed';
  }
@@ -470,3 +481,16 @@ function litrd_make_storefront_public($response,$server,$request){
  return $response;
 }
 add_filter('rest_post_dispatch','litrd_make_storefront_public',25,3);
+
+function litrd_cpanel_directory_privacy($enabled,$authname){
+ if(!litrd_sandbox() || !function_exists('shell_exec') || !is_executable('/usr/local/cpanel/bin/uapi')){return false;}
+ $arguments=array(
+  '/usr/local/cpanel/bin/uapi','--user=litdwlek','--output=json',
+  'DirectoryPrivacy','configure_directory_protection',
+  'dir='.untrailingslashit(ABSPATH),'enabled='.($enabled?'1':'0')
+ );
+ if($enabled){$arguments[]='authname='.$authname;}
+ $command=implode(' ',array_map('escapeshellarg',$arguments));
+ $result=json_decode((string)shell_exec($command.' 2>/dev/null'),true);
+ return is_array($result) && isset($result['result']['status']) && (int)$result['result']['status']===1;
+}
