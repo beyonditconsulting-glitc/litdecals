@@ -74,5 +74,22 @@ jobs:
                        ". No site files were changed.")
           except (urllib.error.URLError, ValueError, TimeoutError):
               sys.exit("Could not verify the sandbox connector. No site files were changed.")
+          print("Status field names: " + ", ".join(sorted(data.keys())))
+          namespace_request = urllib.request.Request(
+              "https://litdecals.com/sandbox-redesign/wp-json/litdecals-sandbox/v1",
+              headers={"Authorization": "Basic " + basic,
+                       "X-LitDecals-Authorization": "Basic " + wordpress,
+                       "Accept": "application/json"}, method="GET")
+          with opener.open(namespace_request, timeout=45) as response:
+              schema = json.loads(response.read(1048576))
+          for route, info in schema.get("routes", {}).items():
+              if route.startswith("/litdecals-sandbox/v1/"):
+                  for endpoint in info.get("endpoints", []):
+                      args = endpoint.get("args", {})
+                      print("Route schema: " + json.dumps({"route": route,
+                            "methods": endpoint.get("methods", []),
+                            "args": {key: {"type": value.get("type"),
+                                     "required": value.get("required", False)}
+                                     for key, value in args.items()}}))
           print("SUCCESS: Sandbox connector returned authenticated JSON with HTTP 200.")
           print("This check used GET only; no site files were changed.")
