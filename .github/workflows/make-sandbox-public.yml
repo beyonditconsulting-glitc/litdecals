@@ -1,0 +1,51 @@
+name: Make LitDecals Sandbox public
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/make-sandbox-public.yml']
+permissions:
+  contents: read
+jobs:
+  make-public:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Apply the authorized access change and verify anonymous browsing
+        env:
+          BASIC_USER: ${{ secrets.LITDECALS_BASIC_USER }}
+          BASIC_PASSWORD: ${{ secrets.LITDECALS_BASIC_PASSWORD }}
+          WP_APP_PASSWORD: ${{ secrets.ITDECALS_WP_APP_PASSWORD || secrets.LITDECALS_WP_APP_PASSWORD }}
+        shell: python
+        run: |
+          import base64,json,os,urllib.request,urllib.error,urllib.parse,sys
+          origin="https://litdecals.com/sandbox-redesign/"
+          basic=base64.b64encode((os.environ["BASIC_USER"]+":"+os.environ["BASIC_PASSWORD"]).encode()).decode()
+          wp=base64.b64encode(("litdecals:"+os.environ["WP_APP_PASSWORD"].strip()).encode()).decode()
+          for value in (basic,wp): print("::add-mask::"+value)
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl): return None
+          opener=urllib.request.build_opener(NoRedirect())
+          req=urllib.request.Request(origin+"wp-json/litdecals-sandbox/v1/preview",
+              data=json.dumps({"enabled":True,"make_storefront_public":True}).encode(),
+              headers={"Authorization":"Basic "+basic,"X-LitDecals-Authorization":"Basic "+wp,
+                       "Content-Type":"application/json"},method="POST")
+          with opener.open(req,timeout=90) as response: data=json.loads(response.read(65536))
+          print("Public access result: "+str(data.get("public_access","not attempted")))
+          print("Public access checks: "+json.dumps(data.get("public_access_checks",{})))
+          if data.get("public_access")!="verified":
+              sys.exit("Public access was not verified. No successful access change is being reported.")
+          for path in ("","shop/","arrma-mafia-shop/","wp-json/wc/store/v1/products?per_page=1"):
+              req=urllib.request.Request(origin+path,headers={"Cache-Control":"no-cache"})
+              with opener.open(req,timeout=35) as response:
+                  if response.status!=200 or response.headers.get("WWW-Authenticate"):
+                      sys.exit("Anonymous browsing check failed.")
+                  print("Public HTTP 200, no hosting login challenge: "+path)
+          try:
+              with opener.open(origin+"wp-admin/",timeout=35) as response:
+                  sys.exit("Admin unexpectedly accessible without a login.")
+          except urllib.error.HTTPError as error:
+              location=error.headers.get("Location","")
+              if error.code not in (301,302,303) or urllib.parse.urlsplit(location).path!="/sandbox-redesign/wp-login.php":
+                  sys.exit("Admin login redirect was not verified.")
+          print("SUCCESS: Sandbox storefront and catalog are public; WordPress admin still requires login.")
