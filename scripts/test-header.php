@@ -3,7 +3,7 @@ $root=sys_get_temp_dir().'/litdecals-header-test/sandbox-redesign';
 if(!is_dir($root)){mkdir($root,0700,true);}
 define('ABSPATH',$root.'/');
 $GLOBALS['site_path']='/sandbox-redesign/';
-function home_url($path){return 'https://litdecals.com'.$GLOBALS['site_path'];}
+function home_url($path){return 'https://litdecals.com'.rtrim($GLOBALS['site_path'],'/').'/'.ltrim($path,'/');}
 function site_url($path){return home_url($path);}
 function wp_parse_url($url,$component){return parse_url($url,$component);}
 function add_action(){}
