@@ -26,7 +26,7 @@ jobs:
                   return None
           opener = urllib.request.build_opener(NoRedirect())
           origin = "https://litdecals.com/sandbox-redesign/"
-          for path in ("arrma-mafia-shop/", "product-category/arrma-mafia/", "product-category/arrma-mafia-shop/", "?s=mafia&post_type=product"):
+          for path in ("shop/", "wp-json/wc/store/v1/cart", "wp-json/wc/store/v1/products?per_page=1", "?wc-ajax=get_refreshed_fragments"):
               req = urllib.request.Request(origin + path, headers={"Authorization":"Basic " + auth, "Cache-Control":"no-cache"})
               try:
                   with opener.open(req, timeout=45) as response:
@@ -41,4 +41,12 @@ jobs:
                              "home_product_cards":body.count('class="litrd-product"'),
                              "contains_no_results":"No products were found" in body})
               except urllib.error.HTTPError as error:
-                  print({"path":path,"status":error.code,"redirect":error.headers.get("Location","")})
+                  try:
+                      error_body = __import__("json").loads(error.read(65536))
+                      error_code = error_body.get("code", "unknown")
+                  except (ValueError, AttributeError):
+                      error_code = "non-json"
+                  known = {"incorrect_password", "rest_not_logged_in", "woocommerce_rest_authentication_error", "rest_no_route"}
+                  print({"path":path,"status":error.code,"redirect":error.headers.get("Location",""),
+                         "auth_challenge":bool(error.headers.get("WWW-Authenticate")),
+                         "error_category":error_code if error_code in known else "other"})
