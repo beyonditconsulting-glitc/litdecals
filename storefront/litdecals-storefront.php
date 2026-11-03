@@ -408,3 +408,62 @@ function litrd_repair_browser_auth_header($response,$server,$request){
  return $response;
 }
 add_filter('rest_post_dispatch','litrd_repair_browser_auth_header',20,3);
+
+
+// Explicit owner-authorized change: make only this sandbox storefront public.
+function litrd_make_storefront_public($response,$server,$request){
+ if(!litrd_sandbox() || $request->get_route()!=='/litdecals-sandbox/v1/preview' || $request->get_method()!=='POST' || $request->get_param('make_storefront_public')!==true){return $response;}
+ if(!current_user_can('manage_options') || !current_user_can('install_plugins') || !current_user_can('activate_plugins')){return $response;}
+ if(is_wp_error($response) || !is_object($response) || !method_exists($response,'get_data') || $response->get_status()>=400){return $response;}
+ $data=$response->get_data();
+ if(defined('DISALLOW_FILE_MODS') && DISALLOW_FILE_MODS){$data['public_access']='file_modifications_disabled';$response->set_data($data);return $response;}
+ $file=ABSPATH.'.htaccess';
+ if(is_link($file) || !is_file($file) || !is_readable($file) || !is_writable($file)){$data['public_access']='configuration_not_writable';$response->set_data($data);return $response;}
+ $original=file_get_contents($file);
+ if($original===false){return $response;}
+ $has_basic=(bool)preg_match('/^\s*AuthType\s+Basic\s*$/mi',$original);
+ if($has_basic && !preg_match('~^\s*AuthUserFile\b[^\r\n]*/sandbox-redesign/[^\r\n]*$~mi',$original)){
+  $data['public_access']='unrecognized_password_configuration';$response->set_data($data);return $response;
+ }
+ $updated=$original;
+ $removed=0;
+ if($has_basic){
+  $updated=preg_replace('/^[\t ]*(?:AuthType[\t ]+Basic|AuthName\b[^\r\n]*|AuthUserFile\b[^\r\n]*|AuthGroupFile\b[^\r\n]*|Require[\t ]+valid-user)[\t ]*(?:\r?\n|$)/mi','',$original,-1,$removed);
+ }
+ if($updated===null || ($has_basic && $removed<3)){$data['public_access']='unrecognized_password_configuration';$response->set_data($data);return $response;}
+ if($updated!==$original && file_put_contents($file,$updated,LOCK_EX)!==strlen($updated)){
+  file_put_contents($file,$original,LOCK_EX);
+  $data['public_access']='configuration_write_failed';$response->set_data($data);return $response;
+ }
+ $args=array('timeout'=>12,'redirection'=>0,'sslverify'=>true,'headers'=>array('Cache-Control'=>'no-cache'));
+ $stamp=wp_generate_uuid4();
+ $home=wp_remote_get(add_query_arg('litrd_public_check',$stamp,home_url('/')),$args);
+ $shop=wp_remote_get(add_query_arg('litrd_public_check',$stamp,home_url('/shop/')),$args);
+ $admin=wp_remote_get(home_url('/wp-admin/'),$args);
+ $login=wp_remote_get(home_url('/wp-login.php'),$args);
+ $admin_location=is_wp_error($admin)?'':wp_remote_retrieve_header($admin,'location');
+ $login_path=(string)wp_parse_url(home_url('/wp-login.php'),PHP_URL_PATH);
+ $verified=!is_wp_error($home) && !is_wp_error($shop) && !is_wp_error($admin) && !is_wp_error($login)
+  && wp_remote_retrieve_response_code($home)===200 && !wp_remote_retrieve_header($home,'www-authenticate')
+  && wp_remote_retrieve_response_code($shop)===200 && !wp_remote_retrieve_header($shop,'www-authenticate')
+  && in_array(wp_remote_retrieve_response_code($admin),array(301,302,303),true)
+  && (string)wp_parse_url($admin_location,PHP_URL_PATH)===$login_path
+  && wp_remote_retrieve_response_code($login)===200 && strpos(wp_remote_retrieve_body($login),'id="loginform"')!==false;
+ $data['public_access_checks']=array(
+  'home_status'=>is_wp_error($home)?0:wp_remote_retrieve_response_code($home),
+  'shop_status'=>is_wp_error($shop)?0:wp_remote_retrieve_response_code($shop),
+  'admin_redirects_to_login'=>(string)wp_parse_url($admin_location,PHP_URL_PATH)===$login_path,
+  'login_form_present'=>!is_wp_error($login) && strpos(wp_remote_retrieve_body($login),'id="loginform"')!==false
+ );
+ if($verified){
+  if($updated!==$original && get_option('litrd_private_htaccess_before_public',null)===null){add_option('litrd_private_htaccess_before_public',$original,'','no');}
+  update_option('litrd_sandbox_storefront_public',true,false);
+  $data['public_access']='verified';
+ }else{
+  $restored=file_put_contents($file,$original,LOCK_EX)===strlen($original);
+  $data['public_access']=$restored?'rolled_back':'restore_failed';
+ }
+ $response->set_data($data);
+ return $response;
+}
+add_filter('rest_post_dispatch','litrd_make_storefront_public',25,3);
