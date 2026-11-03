@@ -26,7 +26,7 @@ jobs:
                   return None
           opener = urllib.request.build_opener(NoRedirect())
           origin = "https://litdecals.com/sandbox-redesign/"
-          for path in ("", "shop/", "?post_type=product&s="):
+          for path in ("?page_id=120", "shop/", "?post_type=product&s="):
               req = urllib.request.Request(origin + path, headers={"Authorization":"Basic " + auth, "Cache-Control":"no-cache"})
               try:
                   with opener.open(req, timeout=45) as response:
