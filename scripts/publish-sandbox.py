@@ -95,7 +95,11 @@ def main():
         html = request(ORIGIN + '?litdecals_verify=' + revision + '-' + str(attempt), wordpress_auth=False).decode('utf-8', 'replace')
         parser.feed(html)
         if parser.titles and all(title == 'Lit Decals' for title in parser.titles):
-            print('SUCCESS: All four file checksums verified; sandbox preview enabled; visible header reads Lit Decals.')
+            for asset in ('storefront.css', 'storefront.js'):
+                served = request(ORIGIN + 'wp-content/plugins/litdecals-storefront/' + asset + '?verify=' + revision, wordpress_auth=False)
+                if hashlib.sha256(served).hexdigest() != expected[asset]:
+                    sys.exit('Published asset readback mismatch: ' + asset)
+            print('SUCCESS: All four file checksums verified; sandbox preview enabled; visible header reads Lit Decals; served CSS and JavaScript match the published source.')
             return
         time.sleep(2)
     sys.exit('Files deployed and enabled, but the visible header could not be confirmed. Check the page cache.')

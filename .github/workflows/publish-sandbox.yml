@@ -7,6 +7,7 @@ on:
       - 'storefront/**'
       - 'scripts/publish-sandbox.py'
       - 'scripts/test-header.php'
+      - 'scripts/test-mobile.cjs'
       - '.github/workflows/publish-sandbox.yml'
 permissions:
   contents: read
@@ -21,12 +22,17 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Validate source and header behavior
+      - name: Install the pinned DOM test dependency
+        run: npm install --prefix "$RUNNER_TEMP/litdecals-dom" --ignore-scripts --no-package-lock linkedom@0.18.12
+      - name: Validate source and mobile behavior
+        env:
+          LITDECALS_DOM_MODULE: ${{ runner.temp }}/litdecals-dom/node_modules/linkedom
         run: |
           php -l storefront/litdecals-storefront.php
           php -l storefront/home.php
           php scripts/test-header.php
           node --check storefront/storefront.js
+          node scripts/test-mobile.cjs
           python3 -m py_compile scripts/publish-sandbox.py
       - name: Publish and verify the sandbox header
         env:

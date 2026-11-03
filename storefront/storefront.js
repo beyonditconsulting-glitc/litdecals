@@ -69,6 +69,56 @@
    }
   }
 
+  // Progressive mobile navigation: cart and language remain available when closed.
+  const mobile=window.matchMedia('(max-width: 750px)');
+  const brandText=document.querySelector('.litrd-blue-brand-text');
+  if(brandText && !brandText.querySelector('.litrd-mobile-tagline')){
+   const tagline=document.createElement('p');tagline.className='litrd-mobile-tagline';
+   tagline.textContent='RC decals, stickers & accessories.';brandText.appendChild(tagline);
+  }
+  const nav=document.querySelector('.litrd-page-bar');
+  if(nav && !nav.querySelector('.litrd-mobile-menu-toggle')){
+   const list=nav.querySelector('ul');
+   const cart=nav.querySelector('.litrd-nav-cart-link');
+   if(list && cart){
+    cart.closest('li').classList.add('litrd-mobile-cart');
+    if(!list.id)list.id='litrd-mobile-navigation-links';
+    const item=document.createElement('li');item.className='litrd-mobile-toggle-item';
+    const toggle=document.createElement('button');toggle.type='button';toggle.className='litrd-mobile-menu-toggle';
+    toggle.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Menu</span>';
+    toggle.setAttribute('aria-controls',list.id);toggle.setAttribute('aria-expanded','false');
+    item.appendChild(toggle);list.insertBefore(item,list.firstChild);nav.classList.add('litrd-mobile-enhanced');
+    function closeMenu(){nav.classList.remove('is-mobile-menu-open');toggle.setAttribute('aria-expanded','false');}
+    toggle.addEventListener('click',function(){
+     const open=toggle.getAttribute('aria-expanded')!=='true';
+     nav.classList.toggle('is-mobile-menu-open',open);toggle.setAttribute('aria-expanded',String(open));
+    });
+    nav.addEventListener('keydown',function(event){if(event.key==='Escape' && toggle.getAttribute('aria-expanded')==='true'){closeMenu();toggle.focus();}});
+    nav.addEventListener('click',function(event){if(event.target.closest('a'))closeMenu();});
+    if(mobile.addEventListener)mobile.addEventListener('change',closeMenu);else mobile.addListener(closeMenu);
+   }
+  }
+  // Use text-presentation arrows on iPhone rather than blue emoji tiles.
+  const arrowSpans=Array.from(document.querySelectorAll('.litrd-product-button>span,.litrd-collection h2>span,.litrd-section-title>a>span,.litrd-browse-links a>span,.litrd-search button>span,.litrd-skins a>span'));
+  const arrowText=arrowSpans.map(function(span){return span.textContent;});
+  function updateArrows(){arrowSpans.forEach(function(span,index){if(arrowText[index].trim()==='↗')span.textContent=mobile.matches?'↗\uFE0E':arrowText[index];});}
+  updateArrows();
+  if(mobile.addEventListener)mobile.addEventListener('change',updateArrows);else mobile.addListener(updateArrows);
+  const topButton=document.createElement('button');topButton.type='button';topButton.className='litrd-back-to-top';topButton.hidden=true;
+  topButton.setAttribute('aria-label','Back to Top');
+  topButton.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 7-7 7 7M12 5v15"/></svg><span>Top</span>';
+  document.body.appendChild(topButton);
+  let scrollQueued=false;
+  function updateTopButton(){topButton.hidden=!mobile.matches || window.scrollY<400;scrollQueued=false;}
+  window.addEventListener('scroll',function(){if(!scrollQueued){scrollQueued=true;window.requestAnimationFrame(updateTopButton);}},{passive:true});
+  if(mobile.addEventListener)mobile.addEventListener('change',updateTopButton);else mobile.addListener(updateTopButton);
+  topButton.addEventListener('click',function(){
+   const heading=document.getElementById('masthead');
+   if(heading){if(!heading.hasAttribute('tabindex'))heading.setAttribute('tabindex','-1');heading.focus({preventScroll:true});}
+   window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  });
+  updateTopButton();
+
   const dialog=document.getElementById('litrd-parts-finder-dialog');
   document.querySelectorAll('.litrd-parts-finder-trigger').forEach(function(button){
    button.addEventListener('click',function(){
