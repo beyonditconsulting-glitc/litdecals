@@ -27,7 +27,7 @@ jobs:
               def redirect_request(self,req,fp,code,msg,headers,newurl): return None
           opener=urllib.request.build_opener(NoRedirect())
           req=urllib.request.Request(origin+"wp-json/litdecals-sandbox/v1/preview",
-              data=json.dumps({"enabled":True,"make_storefront_public":True}).encode(),
+              data=json.dumps({"enabled":True,"make_storefront_public":True,"use_cpanel_privacy":True}).encode(),
               headers={"Authorization":"Basic "+basic,"X-LitDecals-Authorization":"Basic "+wp,
                        "Content-Type":"application/json"},method="POST")
           with opener.open(req,timeout=90) as response: data=json.loads(response.read(65536))
