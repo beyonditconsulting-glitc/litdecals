@@ -34,6 +34,20 @@ jobs:
               def redirect_request(self, req, fp, code, msg, headers, newurl):
                   return None
           opener = urllib.request.build_opener(NoRedirect())
+          front_request = urllib.request.Request(
+              "https://litdecals.com/sandbox-redesign/",
+              headers={"Authorization": "Basic " + basic,
+                       "User-Agent": "LitDecals-Sandbox-Connection-Check/1.0"},
+              method="GET")
+          try:
+              with opener.open(front_request, timeout=45) as response:
+                  response.read(1)
+                  print("Browser login passed: HTTP " + str(response.status))
+          except urllib.error.HTTPError as error:
+              sys.exit("Browser login failed: HTTP " + str(error.code) +
+                       ". Check LITDECALS_BASIC_USER and LITDECALS_BASIC_PASSWORD.")
+          except (urllib.error.URLError, TimeoutError):
+              sys.exit("Could not reach the sandbox homepage.")
           request = urllib.request.Request(
               "https://litdecals.com/sandbox-redesign/wp-json/litdecals-sandbox/v1/status",
               headers={"Authorization": "Basic " + basic,
@@ -47,6 +61,15 @@ jobs:
                   if response.status != 200 or not isinstance(data, dict):
                       sys.exit("The connector returned an unexpected response.")
           except urllib.error.HTTPError as error:
+              try:
+                  code = json.loads(error.read(1048576)).get("code")
+              except (ValueError, AttributeError):
+                  code = None
+              known_codes = {"invalid_auth", "incorrect_password", "invalid_username",
+                             "application_passwords_disabled", "application_passwords_disabled_for_user",
+                             "rest_not_logged_in", "admin_required", "sandbox_only",
+                             "https_required", "rest_no_route"}
+              print("WordPress error category: " + (code if code in known_codes else "unclassified"))
               sys.exit("Sandbox authentication check failed: HTTP " + str(error.code) +
                        ". No site files were changed.")
           except (urllib.error.URLError, ValueError, TimeoutError):
