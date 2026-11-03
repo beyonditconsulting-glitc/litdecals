@@ -61,3 +61,26 @@ jobs:
               code=body.decode("utf-8","replace")
               snippets=[code[max(0,m.start()-100):m.end()+150] for m in re.finditer("credentials",code)]
               print({"script":path,"status":status,"credential_options":snippets[:12]})
+
+          class ProductStructure(HTMLParser):
+              def __init__(self): super().__init__(); self.stack=[]; self.current=None; self.entries=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag=="body": print({"body_classes":a.get("class","")})
+                  if tag=="a" and "/product/" in a.get("href",""):
+                      self.current={"href":a["href"],"parents":self.stack[-5:],"text":[]}
+                  if tag not in ("img","input","meta","link","br","hr","source","wbr"):
+                      self.stack.append((tag,a.get("class",""),a.get("id","")))
+              def handle_data(self,text):
+                  if self.current is not None: self.current["text"].append(text)
+              def handle_endtag(self,tag):
+                  if tag=="a" and self.current is not None:
+                      self.current["text"]=" ".join("".join(self.current["text"]).split())
+                      if self.current["text"]: self.entries.append(self.current)
+                      self.current=None
+                  for i in range(len(self.stack)-1,-1,-1):
+                      if self.stack[i][0]==tag:
+                          self.stack=self.stack[:i];break
+          _,_,_,body=fetch(origin+"arrma-mafia-shop/?inspect=structure",True)
+          structure=ProductStructure();structure.feed(body.decode("utf-8","replace"))
+          print({"product_structure":structure.entries[:8]})
