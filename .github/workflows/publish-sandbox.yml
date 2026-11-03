@@ -1,0 +1,36 @@
+name: Publish LitDecals Sandbox
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'storefront/**'
+      - 'scripts/publish-sandbox.py'
+      - 'scripts/test-header.php'
+      - '.github/workflows/publish-sandbox.yml'
+permissions:
+  contents: read
+concurrency:
+  group: litdecals-sandbox-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate source and header behavior
+        run: |
+          php -l storefront/litdecals-storefront.php
+          php -l storefront/home.php
+          php scripts/test-header.php
+          node --check storefront/storefront.js
+          python3 -m py_compile scripts/publish-sandbox.py
+      - name: Publish and verify the sandbox header
+        env:
+          BASIC_USER: ${{ secrets.LITDECALS_BASIC_USER }}
+          BASIC_PASSWORD: ${{ secrets.LITDECALS_BASIC_PASSWORD }}
+          WP_APP_PASSWORD: ${{ secrets.ITDECALS_WP_APP_PASSWORD || secrets.LITDECALS_WP_APP_PASSWORD }}
+        run: python3 scripts/publish-sandbox.py

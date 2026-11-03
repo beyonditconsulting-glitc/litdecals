@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Lit Decals Storefront
  * Description: Product-focused sandbox homepage using the original theme header, branding, navigation and footer.
- * Version: 2.5.0
+ * Version: 2.5.1
  * Requires PHP: 7.4
  */
 if(!defined('ABSPATH')){exit;}
@@ -234,7 +234,24 @@ add_action('wp_footer',function(){
  ?><dialog id="litrd-parts-finder-dialog" class="litrd-coming-soon" aria-labelledby="litrd-coming-soon-heading"><div class="litrd-dialog-content"><p>ARRMA PARTS FINDER</p><h2 id="litrd-coming-soon-heading">Coming Soon</h2><form method="dialog"><button type="submit" autofocus>Close</button></form></div></dialog><?php
 },10);
 
+function litrd_header_without_sandbox($header){
+ if(!litrd_sandbox()){return $header;}
+ // Change only visible text inside the theme's site-title element.
+ return preg_replace_callback('~(<(h[1-6]|p)\b[^>]*\bclass=["\'][^"\']*\bsite-title\b[^"\']*["\'][^>]*>)(.*?)(</\2>)~is',function($match){
+  $parts=preg_split('~(<[^>]*>)~s',$match[3],-1,PREG_SPLIT_DELIM_CAPTURE);
+  foreach($parts as $index=>$part){
+   if($index%2===0){
+    $text=html_entity_decode($part,ENT_QUOTES,'UTF-8');
+    $clean=preg_replace('~\s*(?:[\x{2014}\x{2013}-]\s*)?Sandbox\s*$~iu','',$text);
+    if($clean!==$text){$parts[$index]=esc_html($clean);}
+   }
+  }
+  return $match[1].implode('',$parts).$match[4];
+ },$header,1);
+}
+
 function litrd_logo_beside_header_text($header){
+ $header=litrd_header_without_sandbox($header);
  $logo='<a class="litrd-blue-header-logo" href="'.esc_url(home_url('/')).'" aria-label="Lit Decals home"><img src="'.esc_url(litrd_logo_source()).'" alt="Lit Decals" loading="eager" fetchpriority="high"></a>';
  $count=0;
  $header=preg_replace_callback('~(<(?:div|section)\b[^>]*class=["\'][^"\']*\bsite-branding\b[^"\']*["\'][^>]*>)~i',function($m)use($logo){return $m[1].$logo;},$header,1,$count);
