@@ -385,6 +385,12 @@ function litrd_repair_browser_auth_header($response,$server,$request){
  $url=add_query_arg('litrd_auth_check',wp_generate_uuid4(),home_url('/shop/'));
  $authenticated=wp_remote_get($url,array('timeout'=>12,'redirection'=>0,'sslverify'=>true,'headers'=>array('Authorization'=>$authorization,'Cache-Control'=>'no-cache')));
  $anonymous=wp_remote_get($url,array('timeout'=>12,'redirection'=>0,'sslverify'=>true,'headers'=>array('Cache-Control'=>'no-cache')));
+ $data['auth_header_checks']=array(
+  'authenticated_status'=>is_wp_error($authenticated)?$authenticated->get_error_code():wp_remote_retrieve_response_code($authenticated),
+  'anonymous_status'=>is_wp_error($anonymous)?$anonymous->get_error_code():wp_remote_retrieve_response_code($anonymous),
+  'authenticated_challenge'=>!is_wp_error($authenticated) && (bool)wp_remote_retrieve_header($authenticated,'www-authenticate'),
+  'anonymous_challenge'=>!is_wp_error($anonymous) && (bool)wp_remote_retrieve_header($anonymous,'www-authenticate')
+ );
  $verified=!is_wp_error($authenticated) && !is_wp_error($anonymous)
   && wp_remote_retrieve_response_code($authenticated)===200
   && !wp_remote_retrieve_header($authenticated,'www-authenticate')

@@ -110,8 +110,7 @@ def main():
     expected = {name: entry['sha256'] for name, entry in files.items()}
     if result.get('deployed') is not True or result.get('sha256') != expected:
         sys.exit('Deployment checksum verification failed; preview was not enabled.')
-    enabled = api('preview', {'enabled': True, 'repair_auth_header': True})
-    print('Hosting authentication header repair: ' + str(enabled.get('auth_header_repair', 'not attempted')))
+    enabled = api('preview', {'enabled': True})
     if enabled.get('enabled') is not True:
         sys.exit('Files deployed but sandbox preview did not enable.')
     status = api('status')
