@@ -422,11 +422,6 @@ function litrd_make_storefront_public($response,$server,$request){
  $original=file_get_contents($file);
  if($original===false){return $response;}
  $used_cpanel=false;
- if($request->get_param('use_cpanel_privacy')===true){
-  $cpanel=litrd_cpanel_directory_privacy(false,'');
-  if(!$cpanel){$data['public_access']='cpanel_api_unavailable_or_failed';$response->set_data($data);return $response;}
-  $used_cpanel=true;
- }
  $has_basic=(bool)preg_match('/^\s*AuthType\s+Basic\s*$/mi',$original);
  if($has_basic && !preg_match('~^\s*AuthUserFile\b[^\r\n]*/sandbox-redesign/[^\r\n]*$~mi',$original)){
   $data['public_access']='unrecognized_password_configuration';$response->set_data($data);return $response;
@@ -440,8 +435,14 @@ function litrd_make_storefront_public($response,$server,$request){
  // Explicitly override inherited directory authentication only for this sandbox.
  $updated=preg_replace('~\n?# BEGIN LitDecals Public Sandbox\n.*?# END LitDecals Public Sandbox\n?~s','',$updated);
  $updated=rtrim($updated)."\n\n# BEGIN LitDecals Public Sandbox\nAuthType None\nRequire all granted\n# END LitDecals Public Sandbox\n";
+ if($request->get_param('use_cpanel_privacy')===true){
+  $cpanel=litrd_cpanel_directory_privacy(false,'');
+  if(!$cpanel){$data['public_access']='cpanel_api_unavailable_or_failed';$response->set_data($data);return $response;}
+  $used_cpanel=true;
+ }
  if($updated!==$original && file_put_contents($file,$updated,LOCK_EX)!==strlen($updated)){
   file_put_contents($file,$original,LOCK_EX);
+  if($used_cpanel){litrd_cpanel_directory_privacy(true,"Protected 'public_html/sandbox-redesign'");}
   $data['public_access']='configuration_write_failed';$response->set_data($data);return $response;
  }
  $args=array('timeout'=>12,'redirection'=>0,'sslverify'=>true,'headers'=>array('Cache-Control'=>'no-cache'));
