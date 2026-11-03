@@ -26,8 +26,11 @@ class SiteTitle(HTMLParser):
         self.text = []
         self.collection = None
         self.collections = []
+        self.findrc_links = []
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
+        if tag == 'a' and attributes.get('href') == 'https://findrc.parts/':
+            self.findrc_links.append(attributes)
         if tag == 'a' and 'litrd-collection' in attributes.get('class', '').split():
             self.collection = {'href': attributes.get('href', ''), 'images': []}
         if tag == 'img' and self.collection is not None:
@@ -105,6 +108,9 @@ def main():
         html = request(ORIGIN + '?litdecals_verify=' + revision + '-' + str(attempt), wordpress_auth=False).decode('utf-8', 'replace')
         parser.feed(html)
         if parser.titles and all(title == 'Lit Decals' for title in parser.titles):
+            if not any('aria-haspopup' not in link for link in parser.findrc_links):
+                sys.exit('Direct FINDRC.PARTS navigation link could not be confirmed.')
+            print('SUCCESS: FINDRC.PARTS links directly to https://findrc.parts/.')
             mafia = [slide for slide in parser.collections if '/arrma-mafia-shop/' in slide['href']]
             stickers = [slide for slide in parser.collections if '/product-category/stickers-2/' in slide['href']]
             if not any(image.get('data-litrd-image-source') == 'arrma-mafia-hoodie' and image.get('src')

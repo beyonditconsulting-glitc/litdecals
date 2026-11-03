@@ -180,7 +180,7 @@ function litrd_ordered_navigation(){
  }else{
  $items.='<li class="menu-item litrd-ordered-menu-item"><a href="'.esc_url($link[1]).'"'.$current.'>'.esc_html($link[0]).'</a></li>';
  }
- if($link[0]==='ARRMA MAFIA'){$items.='<li class="menu-item litrd-parts-finder-item"><button type="button" class="litrd-parts-finder-trigger" aria-haspopup="dialog" aria-controls="litrd-parts-finder-dialog">ARRMA PARTS FINDER</button></li>';}
+ if($link[0]==='ARRMA MAFIA'){$items.='<li class="menu-item litrd-ordered-menu-item"><a href="https://findrc.parts/" class="notranslate" translate="no">FINDRC.PARTS</a></li>';}
  }
  return $items;
 }
@@ -235,10 +235,7 @@ add_filter('woocommerce_add_to_cart_fragments',function($fragments){
  return $fragments;
 });
 
-add_action('wp_footer',function(){
- if(!litrd_sandbox() || !function_exists('wc_get_products')){return;}
- ?><dialog id="litrd-parts-finder-dialog" class="litrd-coming-soon" aria-labelledby="litrd-coming-soon-heading"><div class="litrd-dialog-content"><p>ARRMA PARTS FINDER</p><h2 id="litrd-coming-soon-heading">Coming Soon</h2><form method="dialog"><button type="submit" autofocus>Close</button></form></div></dialog><?php
-},10);
+
 
 function litrd_header_without_sandbox($header){
  if(!litrd_sandbox()){return $header;}
