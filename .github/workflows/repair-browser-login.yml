@@ -1,0 +1,50 @@
+name: Repair and verify browser login challenges
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/repair-browser-login.yml']
+permissions:
+  contents: read
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Apply the guarded repair and verify password protection
+        env:
+          BASIC_USER: ${{ secrets.LITDECALS_BASIC_USER }}
+          BASIC_PASSWORD: ${{ secrets.LITDECALS_BASIC_PASSWORD }}
+          WP_APP_PASSWORD: ${{ secrets.ITDECALS_WP_APP_PASSWORD || secrets.LITDECALS_WP_APP_PASSWORD }}
+        shell: python
+        run: |
+          import base64,json,os,urllib.request,urllib.error,sys
+          origin="https://litdecals.com/sandbox-redesign/"
+          basic=base64.b64encode((os.environ["BASIC_USER"]+":"+os.environ["BASIC_PASSWORD"]).encode()).decode()
+          wp=base64.b64encode(("litdecals:"+os.environ["WP_APP_PASSWORD"].strip()).encode()).decode()
+          for value in (basic,wp): print("::add-mask::"+value)
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl): return None
+          opener=urllib.request.build_opener(NoRedirect())
+          request=urllib.request.Request(origin+"wp-json/litdecals-sandbox/v1/preview",
+              data=json.dumps({"enabled":True,"repair_auth_header":True}).encode(),
+              headers={"Authorization":"Basic "+basic,"X-LitDecals-Authorization":"Basic "+wp,
+                       "Content-Type":"application/json"},method="POST")
+          with opener.open(request,timeout=60) as response: data=json.loads(response.read(65536))
+          result=data.get("auth_header_repair","not attempted")
+          print("Guarded hosting-header repair: "+result)
+          checks=[]
+          for authenticated in (False,True):
+              headers={"Cache-Control":"no-cache"}
+              if authenticated: headers["Authorization"]="Basic "+basic
+              request=urllib.request.Request(origin+"shop/?verify_auth_header=1",headers=headers)
+              try:
+                  with opener.open(request,timeout=35) as response:
+                      checks.append((authenticated,response.status,bool(response.headers.get("WWW-Authenticate"))))
+              except urllib.error.HTTPError as error:
+                  checks.append((authenticated,error.code,bool(error.headers.get("WWW-Authenticate"))))
+          for authenticated,status,challenge in checks:
+              print({"authenticated":authenticated,"status":status,"login_challenge":challenge})
+          if checks != [(False,401,True),(True,200,False)]:
+              sys.exit("The browser-login fix is not verified. Existing password protection remains in place.")
+          print("SUCCESS: Anonymous visitors remain protected; successful authenticated navigation has no repeated challenge header.")
