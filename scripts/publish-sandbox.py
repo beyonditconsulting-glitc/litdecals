@@ -24,7 +24,14 @@ class SiteTitle(HTMLParser):
         self.tag = None
         self.titles = []
         self.text = []
+        self.collection = None
+        self.collections = []
     def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if tag == 'a' and 'litrd-collection' in attributes.get('class', '').split():
+            self.collection = {'href': attributes.get('href', ''), 'images': []}
+        if tag == 'img' and self.collection is not None:
+            self.collection['images'].append(attributes)
         if self.tag is None and 'site-title' in dict(attrs).get('class', '').split():
             self.tag = tag
             self.text = []
@@ -32,6 +39,9 @@ class SiteTitle(HTMLParser):
         if self.tag:
             self.text.append(data)
     def handle_endtag(self, tag):
+        if tag == 'a' and self.collection is not None:
+            self.collections.append(self.collection)
+            self.collection = None
         if tag == self.tag:
             self.titles.append(' '.join(''.join(self.text).split()))
             self.tag = None
@@ -95,6 +105,15 @@ def main():
         html = request(ORIGIN + '?litdecals_verify=' + revision + '-' + str(attempt), wordpress_auth=False).decode('utf-8', 'replace')
         parser.feed(html)
         if parser.titles and all(title == 'Lit Decals' for title in parser.titles):
+            mafia = [slide for slide in parser.collections if '/arrma-mafia-shop/' in slide['href']]
+            stickers = [slide for slide in parser.collections if '/product-category/stickers-2/' in slide['href']]
+            if not any(image.get('data-litrd-image-source') == 'arrma-mafia-hoodie' and image.get('src')
+                       for slide in mafia for image in slide['images']):
+                sys.exit('Published Mafia slider image could not be confirmed.')
+            if not any(image.get('src') == ORIGIN + 'wp-content/uploads/2025/03/Sticker-Sheets-5.jpg'
+                       for slide in stickers for image in slide['images']):
+                sys.exit('Published Stickers slider image could not be confirmed.')
+            print('SUCCESS: Mafia slide uses the hoodie product image; Stickers slide uses Sticker-Sheets-5.jpg.')
             for asset in ('storefront.css', 'storefront.js'):
                 served = request(ORIGIN + 'wp-content/plugins/litdecals-storefront/' + asset + '?verify=' + revision, wordpress_auth=False)
                 if hashlib.sha256(served).hexdigest() != expected[asset]:

@@ -37,6 +37,12 @@ function litrd_collection($label,$path,$slugs){
  if(!$image){$samples=wc_get_products(array('status'=>'publish','visibility'=>'catalog','category'=>array($term->slug),'limit'=>1));if($samples){$image=$samples[0]->get_image('woocommerce_thumbnail',array('alt'=>'','loading'=>'lazy'));}}
  }
  if($label==='Decals'){$image='<img src="'.esc_url('https://litdecals.com/sandbox-redesign/wp-content/uploads/2022/08/OuttaRCParts_Black.png').'" alt="Outta RC Parts decal design" loading="lazy">';}
+ if($label==='Stickers'){$image='<img src="'.esc_url('https://litdecals.com/sandbox-redesign/wp-content/uploads/2025/03/Sticker-Sheets-5.jpg').'" alt="Lit Decals sticker sheets" loading="lazy">';}
+ if($label==='Arrma Mafia Shop'){
+  $hoodie_post=get_page_by_path('arrma-mafia-hoodie',OBJECT,'product');
+  $hoodie=$hoodie_post?wc_get_product($hoodie_post->ID):false;
+  if($hoodie && $hoodie->get_image_id()){$image=$hoodie->get_image('medium_large',array('alt'=>'ARRMA Mafia hoodie','loading'=>'lazy','data-litrd-image-source'=>'arrma-mafia-hoodie'));}
+ }
  if($label==='RC Accessories'){$image='<img src="'.esc_url('https://litdecals.com/wp-content/uploads/2023/05/GRAY-SKULLS.jpg').'" alt="Gray Skulls RC accessory design" loading="lazy">';}
  return array('label'=>$label,'url'=>$url,'image'=>$image,'term'=>$term);
 }
