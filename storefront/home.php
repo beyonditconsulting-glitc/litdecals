@@ -9,7 +9,7 @@ if(!empty($GLOBALS['litrd_original_template'])){
  return;
 }
 
-$shop=wc_get_page_permalink('shop');
+$shop=litrd_catalog_url();
 $collections=array_filter(array(
  litrd_collection('Decals','decals',array('decals','decal')),
  litrd_collection('Stickers','product-category/stickers-2',array('stickers-2','stickers','sticker')),

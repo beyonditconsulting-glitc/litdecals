@@ -302,8 +302,9 @@ add_filter('template_include',function($template){
  return __DIR__.'/home.php';
 },100);
 add_action('get_footer',function(){$GLOBALS['litrd_capture_header']=false;},1);
+function litrd_catalog_url(){return home_url('/shop/');}
 function litrd_browse_search_row(){
- $shop=wc_get_page_permalink('shop');
+ $shop=litrd_catalog_url();
  ob_start();
  ?><div class="litrd-topline"><div class="litrd-browse-links"><span>EXPLORE LIT DECALS</span><a href="<?php echo esc_url($shop); ?>">Browse all products <span aria-hidden="true">↗</span></a></div><form class="litrd-search" role="search" method="get" action="<?php echo esc_url(home_url('/')); ?>"><label for="litrd-search">Find something for your build</label><div><input id="litrd-search" type="search" name="s" placeholder="Search decals, skins, accessories…" required><input type="hidden" name="post_type" value="product"><button type="submit">Search <span aria-hidden="true">↗</span></button></div></form></div><?php
  return ob_get_clean();

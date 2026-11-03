@@ -27,8 +27,12 @@ class SiteTitle(HTMLParser):
         self.collection = None
         self.collections = []
         self.findrc_links = []
+        self.active_link = None
+        self.catalog_links = []
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
+        if tag == 'a':
+            self.active_link = {'href': attributes.get('href', ''), 'text': []}
         if tag == 'a' and attributes.get('href') == 'https://findrc.parts/':
             self.findrc_links.append(attributes)
         if tag == 'a' and 'litrd-collection' in attributes.get('class', '').split():
@@ -39,9 +43,16 @@ class SiteTitle(HTMLParser):
             self.tag = tag
             self.text = []
     def handle_data(self, data):
+        if self.active_link is not None:
+            self.active_link['text'].append(data)
         if self.tag:
             self.text.append(data)
     def handle_endtag(self, tag):
+        if tag == 'a' and self.active_link is not None:
+            text = ' '.join(''.join(self.active_link['text']).split())
+            if text.startswith('Browse all products') or text.startswith('View the full catalog'):
+                self.catalog_links.append({'text': text, 'href': self.active_link['href']})
+            self.active_link = None
         if tag == 'a' and self.collection is not None:
             self.collections.append(self.collection)
             self.collection = None
@@ -108,6 +119,13 @@ def main():
         html = request(ORIGIN + '?litdecals_verify=' + revision + '-' + str(attempt), wordpress_auth=False).decode('utf-8', 'replace')
         parser.feed(html)
         if parser.titles and all(title == 'Lit Decals' for title in parser.titles):
+            for label in ('Browse all products', 'View the full catalog'):
+                if not any(link['text'].startswith(label) and link['href'] == ORIGIN + 'shop/' for link in parser.catalog_links):
+                    sys.exit('Catalog destination verification failed: ' + label)
+            catalog = request(ORIGIN + 'shop/?litdecals_verify=' + revision, wordpress_auth=False).decode('utf-8', 'replace')
+            if 'woocommerce-loop-product__title' not in catalog:
+                sys.exit('The catalog destination did not return a WooCommerce product listing.')
+            print('SUCCESS: Both catalog buttons point to the sandbox shop and the destination returns products.')
             if not any('aria-haspopup' not in link for link in parser.findrc_links):
                 sys.exit('Direct FINDRC.PARTS navigation link could not be confirmed.')
             print('SUCCESS: FINDRC.PARTS links directly to https://findrc.parts/.')
