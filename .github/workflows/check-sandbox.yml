@@ -76,13 +76,13 @@ jobs:
               sys.exit("Could not verify the sandbox connector. No site files were changed.")
           print("Status field names: " + ", ".join(sorted(data.keys())))
           namespace_request = urllib.request.Request(
-              "https://litdecals.com/sandbox-redesign/wp-json/litdecals-sandbox/v1",
+              "https://litdecals.com/sandbox-redesign/wp-json/litdecals-sandbox/v1/deploy",
               headers={"Authorization": "Basic " + basic,
                        "X-LitDecals-Authorization": "Basic " + wordpress,
-                       "Accept": "application/json"}, method="GET")
+                       "Accept": "application/json"}, method="OPTIONS")
           with opener.open(namespace_request, timeout=45) as response:
               schema = json.loads(response.read(1048576))
-          for route, info in schema.get("routes", {}).items():
+          for route, info in schema.get("routes", {"/litdecals-sandbox/v1/deploy": schema}).items():
               if route.startswith("/litdecals-sandbox/v1/"):
                   for endpoint in info.get("endpoints", []):
                       args = endpoint.get("args", {})
