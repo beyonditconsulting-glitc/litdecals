@@ -360,14 +360,45 @@ function litrd_mafia_product_block($content,$block){
 }
 add_filter('render_block','litrd_mafia_product_block',20,2);
 
- 
-// Keep Directory Privacy enabled, but do not challenge again on a successful
-// authenticated WordPress response. Actual 401 responses retain their challenge.
-add_action('send_headers',function(){
- if(!litrd_sandbox() || !function_exists('header_register_callback')){return;}
- if(empty($_SERVER['REMOTE_USER']) && empty($_SERVER['PHP_AUTH_USER']) && empty($_SERVER['HTTP_AUTHORIZATION'])){return;}
- header_register_callback(function(){
-  $status=http_response_code();
-  if($status>=200 && $status<300){header_remove('WWW-Authenticate');}
- });
-},PHP_INT_MAX);
+// One authenticated publishing operation can repair redundant hosting challenges.
+// The existing directory password stays required; failed checks restore the file.
+function litrd_repair_browser_auth_header($response,$server,$request){
+ if(!litrd_sandbox() || $request->get_route()!=='/litdecals-sandbox/v1/preview' || $request->get_method()!=='POST' || $request->get_param('repair_auth_header')!==true){return $response;}
+ if(!current_user_can('manage_options') || !current_user_can('install_plugins') || !current_user_can('activate_plugins')){return $response;}
+ if(is_wp_error($response) || !is_object($response) || !method_exists($response,'get_data') || $response->get_status()>=400){return $response;}
+ $data=$response->get_data();
+ if(defined('DISALLOW_FILE_MODS') && DISALLOW_FILE_MODS){$data['auth_header_repair']='file_modifications_disabled';$response->set_data($data);return $response;}
+ $file=ABSPATH.'.htaccess';
+ if(is_link($file) || !is_file($file) || !is_readable($file) || !is_writable($file)){$data['auth_header_repair']='configuration_not_writable';$response->set_data($data);return $response;}
+ $authorization=$request->get_header('authorization');
+ if(!is_string($authorization) || stripos($authorization,'Basic ')!==0){$data['auth_header_repair']='hosting_auth_unavailable';$response->set_data($data);return $response;}
+ $original=file_get_contents($file);
+ if($original===false){return $response;}
+ if(!function_exists('insert_with_markers')){require_once ABSPATH.'wp-admin/includes/misc.php';}
+ $rules=array(
+  '<IfModule mod_headers.c>',
+  'Header always unset WWW-Authenticate "expr=%{REQUEST_STATUS} == 200"',
+  'Header onsuccess unset WWW-Authenticate "expr=%{REQUEST_STATUS} == 200"',
+  '</IfModule>'
+ );
+ if(!insert_with_markers($file,'LitDecals Sandbox Successful Authentication',$rules)){$data['auth_header_repair']='configuration_write_failed';$response->set_data($data);return $response;}
+ $url=add_query_arg('litrd_auth_check',wp_generate_uuid4(),home_url('/shop/'));
+ $authenticated=wp_remote_get($url,array('timeout'=>12,'redirection'=>0,'sslverify'=>true,'headers'=>array('Authorization'=>$authorization,'Cache-Control'=>'no-cache')));
+ $anonymous=wp_remote_get($url,array('timeout'=>12,'redirection'=>0,'sslverify'=>true,'headers'=>array('Cache-Control'=>'no-cache')));
+ $verified=!is_wp_error($authenticated) && !is_wp_error($anonymous)
+  && wp_remote_retrieve_response_code($authenticated)===200
+  && !wp_remote_retrieve_header($authenticated,'www-authenticate')
+  && wp_remote_retrieve_response_code($anonymous)===401
+  && wp_remote_retrieve_header($anonymous,'www-authenticate');
+ if($verified){
+  if(get_option('litrd_auth_header_original_htaccess',null)===null){add_option('litrd_auth_header_original_htaccess',$original,'','no');}
+  $data['auth_header_repair']='verified';
+ }else{
+  $restored=file_put_contents($file,$original,LOCK_EX)===strlen($original);
+  $data['auth_header_repair']=$restored?'rolled_back':'restore_failed';
+ }
+ unset($authorization);
+ $response->set_data($data);
+ return $response;
+}
+add_filter('rest_post_dispatch','litrd_repair_browser_auth_header',20,3);

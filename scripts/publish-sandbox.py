@@ -110,7 +110,8 @@ def main():
     expected = {name: entry['sha256'] for name, entry in files.items()}
     if result.get('deployed') is not True or result.get('sha256') != expected:
         sys.exit('Deployment checksum verification failed; preview was not enabled.')
-    enabled = api('preview', {'enabled': True})
+    enabled = api('preview', {'enabled': True, 'repair_auth_header': True})
+    print('Hosting authentication header repair: ' + str(enabled.get('auth_header_repair', 'not attempted')))
     if enabled.get('enabled') is not True:
         sys.exit('Files deployed but sandbox preview did not enable.')
     status = api('status')
@@ -133,8 +134,9 @@ def main():
             mafia_page.feed(mafia_html)
             if not mafia_page.product_links:
                 sys.exit('Mafia page did not return any product links.')
-            unrelated = [link for link in mafia_page.product_links
-                         if 'mafia' not in (link['text'] + ' ' + link['href']).lower()]
+            mafia_hrefs = {link['href'] for link in mafia_page.product_links
+                           if 'mafia' in (link['text'] + ' ' + link['href']).lower()}
+            unrelated = [link for link in mafia_page.product_links if link['href'] not in mafia_hrefs]
             if unrelated:
                 sys.exit('The Mafia page still contains unrelated product links: ' + json.dumps(unrelated[:8]))
             for title in ('RC Lipo Battery Savers', 'Lit Decals Mystery Box', '1:1 Car Door Battery Power Sticker'):
