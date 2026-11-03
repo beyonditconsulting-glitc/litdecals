@@ -431,6 +431,9 @@ function litrd_make_storefront_public($response,$server,$request){
   $updated=preg_replace('/^[\t ]*(?:AuthType[\t ]+Basic|AuthName\b[^\r\n]*|AuthUserFile\b[^\r\n]*|AuthGroupFile\b[^\r\n]*|Require[\t ]+valid-user)[\t ]*(?:\r?\n|$)/mi','',$original,-1,$removed);
  }
  if($updated===null || ($has_basic && $removed<3)){$data['public_access']='unrecognized_password_configuration';$response->set_data($data);return $response;}
+ // Explicitly override inherited directory authentication only for this sandbox.
+ $updated=preg_replace('~\n?# BEGIN LitDecals Public Sandbox\n.*?# END LitDecals Public Sandbox\n?~s','',$updated);
+ $updated=rtrim($updated)."\n\n# BEGIN LitDecals Public Sandbox\nAuthType None\nRequire all granted\n# END LitDecals Public Sandbox\n";
  if($updated!==$original && file_put_contents($file,$updated,LOCK_EX)!==strlen($updated)){
   file_put_contents($file,$original,LOCK_EX);
   $data['public_access']='configuration_write_failed';$response->set_data($data);return $response;
