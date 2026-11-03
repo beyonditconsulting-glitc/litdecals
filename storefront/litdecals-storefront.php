@@ -1,0 +1,309 @@
+<?php
+/**
+ * Plugin Name: Lit Decals Storefront
+ * Description: Product-focused sandbox homepage using the original theme header, branding, navigation and footer.
+ * Version: 2.5.0
+ * Requires PHP: 7.4
+ */
+if(!defined('ABSPATH')){exit;}
+function litrd_sandbox(){
+ $root=realpath(ABSPATH);
+ return $root && basename($root)==='sandbox-redesign'
+ && rtrim((string)wp_parse_url(home_url('/'),PHP_URL_PATH),'/')==='/sandbox-redesign'
+ && rtrim((string)wp_parse_url(site_url('/'),PHP_URL_PATH),'/')==='/sandbox-redesign';
+}
+function litrd_active(){return litrd_sandbox() && is_front_page() && function_exists('wc_get_products') && get_option('litrd_enabled',true);}
+add_action('wp_enqueue_scripts',function(){
+ if(!litrd_sandbox() || !function_exists('wc_get_products')){return;}
+ wp_enqueue_style('litrd',plugins_url('storefront.css',__FILE__),array(),'2.5.0');
+ wp_enqueue_script('litrd-interactions',plugins_url('storefront.js',__FILE__),array(),'2.5.0',true);
+
+ $accent=sanitize_hex_color(get_theme_mod('storefront_accent_color','#b52b25'));
+ if($accent){wp_add_inline_style('litrd','.litrd-store{--litrd-accent:'.$accent.';}');}
+});
+add_filter('template_include',function($template){return litrd_active()?__DIR__.'/home.php':$template;},99);
+add_action('admin_notices',function(){if(current_user_can('manage_options')){echo '<div class="notice notice-info"><p>Lit Decals Storefront 2.0: '.(litrd_sandbox()?'sandbox homepage enabled. Original theme branding and navigation retained. Deactivate to restore the original homepage.':'disabled outside the sandbox.').'</p></div>';}});
+function litrd_collection($label,$path,$slugs){
+ $page=get_page_by_path($path,OBJECT,'page');$term=null;
+ foreach($slugs as $slug){$candidate=get_term_by('slug',$slug,'product_cat');if($candidate && !is_wp_error($candidate)){$term=$candidate;break;}}
+ $url=$page && $page->post_status==='publish'?get_permalink($page):false;
+ if(!$url && $term){$url=get_term_link($term);if(is_wp_error($url)){$url=false;}}
+ if($label==='Stickers'){$url=home_url('/product-category/stickers-2/');}
+ if(!$url){return null;}
+ $image='';
+ if($page && has_post_thumbnail($page)){$image=get_the_post_thumbnail($page,'medium',array('alt'=>'','loading'=>'lazy'));}
+ if(!$image && $term){
+ $image=wp_get_attachment_image((int)get_term_meta($term->term_id,'thumbnail_id',true),'medium',false,array('alt'=>'','loading'=>'lazy'));
+ if(!$image){$samples=wc_get_products(array('status'=>'publish','visibility'=>'catalog','category'=>array($term->slug),'limit'=>1));if($samples){$image=$samples[0]->get_image('woocommerce_thumbnail',array('alt'=>'','loading'=>'lazy'));}}
+ }
+ if($label==='Decals'){$image='<img src="'.esc_url('https://litdecals.com/sandbox-redesign/wp-content/uploads/2022/08/OuttaRCParts_Black.png').'" alt="Outta RC Parts decal design" loading="lazy">';}
+ if($label==='RC Accessories'){$image='<img src="'.esc_url('https://litdecals.com/wp-content/uploads/2023/05/GRAY-SKULLS.jpg').'" alt="Gray Skulls RC accessory design" loading="lazy">';}
+ return array('label'=>$label,'url'=>$url,'image'=>$image,'term'=>$term);
+}
+
+// Reversible sandbox exclusions. No catalog records are deleted.
+function litrd_retired_brand($value){
+ $plain=html_entity_decode(wp_strip_all_tags((string)$value),ENT_QUOTES,'UTF-8');
+ return (bool)preg_match('/rc[\s_\-]*4[\s_\-]*us|black[\s_\-]*sheep[\s_\-]*rc/i',$plain);
+}
+function litrd_brand_filtering(){return litrd_sandbox() && !is_admin();}
+function litrd_retired_terms(){
+ static $ids=null;if($ids!==null){return $ids;}$ids=array();
+ $taxonomies=array_values(array_intersect(array('product_cat','product_brand','pa_brand'),get_object_taxonomies('product')));if(!$taxonomies){return $ids;}
+ $terms=get_terms(array('taxonomy'=>$taxonomies,'hide_empty'=>false,'suppress_filter'=>true));
+ if(is_wp_error($terms)){return $ids;}
+ foreach($terms as $term){if(litrd_retired_brand($term->name.' '.$term->slug)){$ids[]=(int)$term->term_id;}}
+ return $ids;
+}
+add_filter('posts_where',function($where,$query){
+ if(!litrd_brand_filtering() || $query->get('litrd_allow_retired')){return $where;}
+ global $wpdb;
+ $patterns=array('%rc4us%','%rc4-us%','%rc4 us%','%rc 4 us%','%rc-4-us%','%blacksheeprc%','%blacksheep rc%','%black sheep rc%','%black-sheep-rc%','%blacksheep-rc%');
+ foreach($patterns as $pattern){$where.=$wpdb->prepare(" AND {$wpdb->posts}.post_title NOT LIKE %s",$pattern);}
+ $ids=litrd_retired_terms();
+ if($ids){$list=implode(',',array_map('absint',$ids));$where.=" AND {$wpdb->posts}.ID NOT IN (SELECT tr.object_id FROM {$wpdb->term_relationships} tr INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id=tr.term_taxonomy_id WHERE tt.taxonomy IN ('product_cat','product_brand','pa_brand') AND tt.term_id IN ($list) AND NOT EXISTS (SELECT 1 FROM {$wpdb->term_relationships} neutral_tr INNER JOIN {$wpdb->term_taxonomy} neutral_tt ON neutral_tt.term_taxonomy_id=neutral_tr.term_taxonomy_id WHERE neutral_tr.object_id=tr.object_id AND neutral_tt.taxonomy=tt.taxonomy AND neutral_tt.term_id NOT IN ($list)))";}
+ return $where;
+},20,2);
+function litrd_clean_menu($items){
+ if(!litrd_brand_filtering()){return $items;}$removed=array();
+ foreach($items as $item){if(litrd_retired_brand($item->title.' '.urldecode($item->url))){$removed[(int)$item->ID]=true;}}
+ do{$changed=false;foreach($items as $item){if(!isset($removed[(int)$item->ID]) && isset($removed[(int)$item->menu_item_parent])){$removed[(int)$item->ID]=true;$changed=true;}}}while($changed);
+ return array_values(array_filter($items,function($item)use($removed){return !isset($removed[(int)$item->ID]);}));
+}
+add_filter('wp_nav_menu_objects','litrd_clean_menu',20);
+add_filter('get_pages',function($pages){
+ if(!litrd_brand_filtering()){return $pages;}$removed=array();
+ foreach($pages as $page){if(litrd_retired_brand($page->post_title.' '.$page->post_name)){$removed[(int)$page->ID]=true;}}
+ do{$changed=false;foreach($pages as $page){if(!isset($removed[(int)$page->ID]) && isset($removed[(int)$page->post_parent])){$removed[(int)$page->ID]=true;$changed=true;}}}while($changed);
+ return array_values(array_filter($pages,function($page)use($removed){return !isset($removed[(int)$page->ID]);}));
+},20);
+add_filter('get_terms',function($terms,$taxonomies,$args){
+ if(!litrd_brand_filtering() || !empty($args['suppress_filter'])){return $terms;}
+ return array_values(array_filter($terms,function($term){return !is_object($term) || !isset($term->name) || !litrd_retired_brand($term->name.' '.$term->slug);}));
+},20,3);
+add_action('template_redirect',function(){
+ if(!litrd_brand_filtering()){return;}$object=get_queried_object();$blocked=false;
+ if($object instanceof WP_Post){$blocked=litrd_retired_brand($object->post_title.' '.$object->post_name);if(!$blocked && $object->post_type==='product'){$blocked=litrd_is_exclusively_retired_product($object->ID);}}
+ elseif($object instanceof WP_Term){$blocked=litrd_retired_brand($object->name.' '.$object->slug);}
+ if($blocked){global $wp_query;$wp_query->set_404();status_header(404);nocache_headers();include get_404_template();exit;}
+},1);
+function litrd_clean_retired_mentions($html){
+ if(!litrd_brand_filtering() || !is_string($html) || !litrd_retired_brand($html)){return $html;}
+ // Remove complete branded links and brand image elements; retain unrelated shared product copy.
+ $pattern='(?:rc[\s_\-]*4[\s_\-]*us|black[\s_\-]*sheep[\s_\-]*rc)';
+ $html=preg_replace_callback('~<a\b[^>]*>.*?</a>~is',function($m){return litrd_retired_brand(urldecode($m[0]))?'':$m[0];},$html);
+ $html=preg_replace_callback('~<img\b[^>]*>~is',function($m){return litrd_retired_brand(urldecode($m[0]))?'':$m[0];},$html);
+ $html=preg_replace_callback('~(<[^>]+>)|([^<]+)~s',function($m)use($pattern){return !empty($m[1])?$m[1]:preg_replace('~'.$pattern.'~i','',$m[2]);},$html);
+ return $html;
+}
+add_filter('the_content','litrd_clean_retired_mentions',30);
+add_filter('woocommerce_short_description','litrd_clean_retired_mentions',30);
+add_filter('widget_text_content','litrd_clean_retired_mentions',30);
+add_filter('widget_block_content','litrd_clean_retired_mentions',30);
+
+// Capture actual theme menu output so links move into its existing HOME bar.
+function litrd_capture_menu_markup($markup){
+ if(!empty($GLOBALS['litrd_capture_header']) && is_string($markup)){
+ $GLOBALS['litrd_header_menus'][]=$markup;
+ }
+ return $markup;
+}
+add_filter('wp_nav_menu','litrd_capture_menu_markup',90);
+add_filter('wp_page_menu','litrd_capture_menu_markup',90);
+function litrd_place_page_links($header){
+ $header=preg_replace_callback('~<header\b([^>]*)>~i',function($m){
+  $attributes=$m[1];
+  if(preg_match('~\bclass\s*=\s*(["\'])(.*?)\1~is',$attributes)){
+   $attributes=preg_replace_callback('~\bclass\s*=\s*(["\'])(.*?)\1~is',function($c){return 'class='.$c[1].$c[2].' litrd-spaced-header'.$c[1];},$attributes,1);
+  }else{$attributes.=' class="litrd-spaced-header"';}
+  return '<header'.$attributes.'>';
+ },$header,1);
+
+ $header=litrd_remove_header_search_cart($header);
+ $header=preg_replace('~<img\b[^>]*FreeShipping50-1[^>]*>~i','',$header);
+ $menus=isset($GLOBALS['litrd_header_menus'])?array_unique($GLOBALS['litrd_header_menus']):array();
+ $items=litrd_ordered_navigation();$target=null;
+ foreach($menus as $menu){
+ preg_match_all('~<a\b[^>]*>(.*?)</a>~is',$menu,$anchors);
+ if(count($anchors[1])===1 && strtolower(trim(wp_strip_all_tags($anchors[1][0])))==='home'){$target=$menu;break;}
+ }
+ if($target!==null){
+ $new=preg_replace_callback('~(<ul\b[^>]*>).*?(</ul>)~is',function($m)use($items){return $m[1].$items.$m[2];},$target,1);
+ $header=str_replace($target,$new,$header);
+ // Remove the old multi-page header menu only after the destination bar exists.
+ foreach($menus as $menu){if($menu===$target){continue;}preg_match_all('~<a\b[^>]*>(.*?)</a>~is',$menu,$anchors);if(count($anchors[1])>=3){$header=str_replace($menu,'',$header);}}
+ return $header;
+ }
+ // If the theme did not expose a HOME-only menu, provide a visible page bar.
+ foreach($menus as $menu){preg_match_all('~<a\b[^>]*>(.*?)</a>~is',$menu,$anchors);if(count($anchors[1])>=3){$header=str_replace($menu,'',$header);}}
+ return $header.'<nav class="litrd-page-bar" aria-label="Website pages"><ul>'.$items.'</ul></nav>';
+}
+
+function litrd_logo_source(){return 'https://litdecals.com/sandbox-redesign/wp-content/uploads/2021/11/Lit-Decals-Logo-1-1.png';}
+function litrd_add_header_logo($header){
+ $header=preg_replace_callback('~<(h[12]|p)\b([^>]*)class=([\"\'])([^\"\']*\bsite-title\b[^\"\']*)\3([^>]*)>~i',function($m){return '<'.$m[1].$m[2].'class='.$m[3].$m[4].' litrd-spaced-site-title'.$m[3].$m[5].'>';},$header,1);
+ $logo='<a class="litrd-header-logo" href="'.esc_url(home_url('/')).'" aria-label="Lit Decals home"><img src="'.esc_url(litrd_logo_source()).'" alt="Lit Decals" loading="eager" fetchpriority="high"></a>';
+ // Place it inside the existing branding section; retain the theme title and navigation.
+ $pattern='~(<(?:div|section)\b[^>]*class=["\'][^"\']*\bsite-branding\b[^"\']*["\'][^>]*>)~i';
+ $count=0;
+ $out=preg_replace_callback($pattern,function($m)use($logo){return $m[1].$logo;},$header,1,$count);
+ if($count){return $out;}
+ // Older themes often expose a title heading instead of a branding wrapper.
+ $out=preg_replace_callback('~<(?:h1|h2)\b[^>]*>~i',function($m)use($logo){return $logo.$m[0];},$header,1,$count);
+ if($count){return $out;}
+ return $header.'<div class="litrd-header-logo-fallback">'.$logo.'</div>';
+}
+
+function litrd_ordered_navigation(){
+ $links=array(
+  array('HOME',home_url('/')),
+  array('DECALS',home_url('/decals/')),
+  array('STICKERS',home_url('/product-category/stickers-2/')),
+  array('RC ACCESSORIES',home_url('/rc-accessories/')),
+  array('ARRMA MAFIA',home_url('/arrma-mafia-shop/')),
+  array('REFUNDS/RETURNS',home_url('/refund_returns/')),
+  array('TERMS/CONDITIONS',home_url('/3466-2/')),
+  array('MY ACCOUNT',wc_get_page_permalink('myaccount')),
+  array('CART',wc_get_cart_url()),
+ );
+ $items='';foreach($links as $index=>$link){
+ $current=$index===0 && is_front_page()?' aria-current="page"':'';
+ if($link[0]==='CART'){
+ $count=(function_exists('WC') && WC()->cart)?(int)WC()->cart->get_cart_contents_count():0;
+ $items.='<li class="menu-item litrd-ordered-menu-item"><a class="litrd-nav-cart-link" href="'.esc_url($link[1]).'" aria-label="'.esc_attr(sprintf('Cart, %d items',$count)).'">CART <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 3h3l2.2 11.5a2 2 0 0 0 2 1.5H18a2 2 0 0 0 2-1.5L22 7H6"/><circle cx="10" cy="21" r="1"/><circle cx="18" cy="21" r="1"/></svg><span class="litrd-cart-count">'.esc_html((string)$count).'</span></a></li>';
+ }else{
+ $items.='<li class="menu-item litrd-ordered-menu-item"><a href="'.esc_url($link[1]).'"'.$current.'>'.esc_html($link[0]).'</a></li>';
+ }
+ if($link[0]==='ARRMA MAFIA'){$items.='<li class="menu-item litrd-parts-finder-item"><button type="button" class="litrd-parts-finder-trigger" aria-haspopup="dialog" aria-controls="litrd-parts-finder-dialog">ARRMA PARTS FINDER</button></li>';}
+ }
+ return $items;
+}
+
+// Apply the full-width layout throughout the sandbox, including WooCommerce pages.
+add_filter('body_class',function($classes){
+ if(litrd_sandbox()){$classes=array_diff($classes,array('right-sidebar','left-sidebar','has-sidebar','sidebar-left','sidebar-right'));$classes[]='litrd-no-sidebars';$classes[]='no-sidebar';}
+ return array_values(array_unique($classes));
+},30);
+add_action('wp_enqueue_scripts',function(){
+ if(!litrd_sandbox()){return;}
+ wp_register_style('litrd-full-width',false,array(),'2.5.0');
+ wp_enqueue_style('litrd-full-width');
+ wp_add_inline_style('litrd-full-width','
+ body.litrd-no-sidebars #secondary,
+ body.litrd-no-sidebars #tertiary,
+ body.litrd-no-sidebars aside.sidebar,
+ body.litrd-no-sidebars .sidebar,
+ body.litrd-no-sidebars .widget-area:not(footer .widget-area):not(.site-footer .widget-area):not(header .widget-area):not(.site-header .widget-area){display:none!important}
+ body.litrd-no-sidebars #primary,
+ body.litrd-no-sidebars .content-area,
+ body.litrd-no-sidebars .site-main,
+ body.litrd-no-sidebars .content-sidebar-wrap{float:none!important;clear:both;width:100%!important;max-width:100%!important;flex:1 1 100%!important;margin-left:0!important;margin-right:0!important}
+ body.litrd-no-sidebars .site-content:has(> #primary),
+ body.litrd-no-sidebars .site-content:has(> .content-area),
+ body.litrd-no-sidebars .row:has(> #secondary),
+ body.litrd-no-sidebars .row:has(> .sidebar){grid-template-columns:minmax(0,1fr)!important}
+ ');
+},99);
+
+function litrd_remove_header_search_cart($header){
+ $header=preg_replace('~<(?:i|span)\b[^>]*class=[\"\'][^\"\']*(?:fa-shopping-cart|fa-cart-shopping|cart-icon)[^\"\']*[\"\'][^>]*>\s*</(?:i|span)>~i','',$header);
+ // Only inspect the captured theme header; keep the product search below the shipping banner.
+ $header=preg_replace_callback('~<form\b[^>]*>.*?</form>~is',function($match){
+ return preg_match('~<input\b[^>]*\bname\s*=\s*["\']s["\']~i',$match[0])?'':$match[0];
+ },$header);
+ $header=preg_replace_callback('~<a\b[^>]*>.*?</a>~is',function($match){
+ if(preg_match('~\bclass\s*=\s*["\'][^"\']*(?:cart-contents|cart-content|header-cart|shopping-cart)[^"\']*["\']~i',$match[0])){return '';}
+ if(preg_match('~href\s*=\s*["\']([^"\']+)["\']~i',$match[0],$url)){
+ $path=untrailingslashit((string)wp_parse_url(html_entity_decode($url[1]),PHP_URL_PATH));
+ $cart_path=untrailingslashit((string)wp_parse_url(wc_get_cart_url(),PHP_URL_PATH));
+ if($path===$cart_path && preg_match('~(?:\bitems?\b|<svg\b|<i\b|<img\b)~i',$match[0])){return '';}
+ }
+ return $match[0];
+ },$header);
+ return $header;
+}
+add_filter('woocommerce_add_to_cart_fragments',function($fragments){
+ if(!litrd_sandbox()){return $fragments;}
+ $count=WC()->cart?(int)WC()->cart->get_cart_contents_count():0;
+ $fragments['.litrd-cart-count']='<span class="litrd-cart-count">'.esc_html((string)$count).'</span>';
+ return $fragments;
+});
+
+add_action('wp_footer',function(){
+ if(!litrd_sandbox() || !function_exists('wc_get_products')){return;}
+ ?><dialog id="litrd-parts-finder-dialog" class="litrd-coming-soon" aria-labelledby="litrd-coming-soon-heading"><div class="litrd-dialog-content"><p>ARRMA PARTS FINDER</p><h2 id="litrd-coming-soon-heading">Coming Soon</h2><form method="dialog"><button type="submit" autofocus>Close</button></form></div></dialog><?php
+},10);
+
+function litrd_logo_beside_header_text($header){
+ $logo='<a class="litrd-blue-header-logo" href="'.esc_url(home_url('/')).'" aria-label="Lit Decals home"><img src="'.esc_url(litrd_logo_source()).'" alt="Lit Decals" loading="eager" fetchpriority="high"></a>';
+ $count=0;
+ $header=preg_replace_callback('~(<(?:div|section)\b[^>]*class=["\'][^"\']*\bsite-branding\b[^"\']*["\'][^>]*>)~i',function($m)use($logo){return $m[1].$logo;},$header,1,$count);
+ if(!$count){$header=preg_replace_callback('~<(?:h1|h2)\b[^>]*>~i',function($m)use($logo){return $logo.$m[0];},$header,1);}
+ return $header;
+}
+
+function litrd_is_exclusively_retired_product($id){
+ $retired=litrd_retired_terms();
+ foreach(array('product_cat','product_brand','pa_brand') as $taxonomy){
+  if(!taxonomy_exists($taxonomy)){continue;}
+  $terms=wp_get_object_terms($id,$taxonomy,array('fields'=>'ids','suppress_filter'=>true));
+  if(!is_wp_error($terms) && $terms && array_intersect($terms,$retired) && !array_diff($terms,$retired)){return true;}
+ }
+ return false;
+}
+add_filter('get_the_terms',function($terms){
+ if(!litrd_brand_filtering() || !is_array($terms)){return $terms;}
+ return array_values(array_filter($terms,function($term){return !litrd_retired_brand($term->name.' '.$term->slug);}));
+},30);
+function litrd_retired_variation($variation){
+ if(!$variation || !is_a($variation,'WC_Product_Variation')){return false;}
+ foreach($variation->get_attributes() as $name=>$value){
+  if(litrd_retired_brand($value)){return true;}
+  if(taxonomy_exists($name)){$term=get_term_by('slug',$value,$name);if($term && !is_wp_error($term) && litrd_retired_brand($term->name)){return true;}}
+ }
+ return false;
+}
+add_filter('woocommerce_dropdown_variation_attribute_options_args',function($args){
+ if(!litrd_brand_filtering()){return $args;}
+ if(empty($args['options']) && !empty($args['product']) && !empty($args['attribute'])){$attributes=$args['product']->get_variation_attributes();$args['options']=isset($attributes[$args['attribute']])?$attributes[$args['attribute']]:array();}
+ if(!empty($args['options'])){$taxonomy=isset($args['attribute'])?$args['attribute']:'';$args['options']=array_values(array_filter($args['options'],function($option)use($taxonomy){if(litrd_retired_brand($option)){return false;}if(taxonomy_exists($taxonomy)){$term=get_term_by('slug',$option,$taxonomy);if($term && !is_wp_error($term) && litrd_retired_brand($term->name)){return false;}}return true;}));}
+ return $args;
+},30);
+add_filter('woocommerce_variation_is_visible',function($visible,$id,$parent,$variation){return litrd_brand_filtering() && litrd_retired_variation($variation)?false:$visible;},30,4);
+add_filter('woocommerce_variation_is_active',function($active,$variation){return litrd_brand_filtering() && litrd_retired_variation($variation)?false:$active;},30,2);
+add_filter('woocommerce_add_to_cart_validation',function($valid,$product_id,$quantity,$variation_id=0,$variations=array()){
+ if(litrd_brand_filtering() && $variation_id && litrd_retired_variation(wc_get_product($variation_id))){wc_add_notice('This design is no longer available. Please choose another design.','error');return false;}
+ return $valid;
+},30,5);
+
+add_filter('template_include',function($template){
+ if(!litrd_sandbox() || !function_exists('wc_get_products') || is_front_page() || is_feed() || is_embed() || !get_option('litrd_enabled',true) || $template===__DIR__.'/home.php'){return $template;}
+ $GLOBALS['litrd_original_template']=$template;
+ return __DIR__.'/home.php';
+},100);
+add_action('get_footer',function(){$GLOBALS['litrd_capture_header']=false;},1);
+function litrd_browse_search_row(){
+ $shop=wc_get_page_permalink('shop');
+ ob_start();
+ ?><div class="litrd-topline"><div class="litrd-browse-links"><span>EXPLORE LIT DECALS</span><a href="<?php echo esc_url($shop); ?>">Browse all products <span aria-hidden="true">↗</span></a></div><form class="litrd-search" role="search" method="get" action="<?php echo esc_url(home_url('/')); ?>"><label for="litrd-search">Find something for your build</label><div><input id="litrd-search" type="search" name="s" placeholder="Search decals, skins, accessories…" required><input type="hidden" name="post_type" value="product"><button type="submit">Search <span aria-hidden="true">↗</span></button></div></form></div><?php
+ return ob_get_clean();
+}
+function litrd_consistent_inner_page_header($document){
+ // Remove the theme's old header-menu output, captured before the footer began.
+ $menus=isset($GLOBALS['litrd_header_menus'])?array_unique($GLOBALS['litrd_header_menus']):array();
+ usort($menus,function($a,$b){return strlen($b)-strlen($a);});
+ foreach($menus as $menu){$position=strpos($document,$menu);if($position!==false){$document=substr_replace($document,'',$position,strlen($menu));}}
+ $document=preg_replace_callback('~<header\b[^>]*>.*?</header>~is',function($match){
+  $header=litrd_remove_header_search_cart($match[0]);
+  $header=litrd_logo_beside_header_text($header);
+  $header=preg_replace_callback('~<header\b([^>]*)>~i',function($tag){
+   $attributes=$tag[1];
+   if(preg_match('~\bclass\s*=\s*(["\'])(.*?)\1~is',$attributes)){
+    $attributes=preg_replace_callback('~\bclass\s*=\s*(["\'])(.*?)\1~is',function($c){return 'class='.$c[1].$c[2].' litrd-spaced-header'.$c[1];},$attributes,1);
+   }else{$attributes.=' class="litrd-spaced-header"';}
+   return '<header'.$attributes.'>';
+  },$header,1);
+  return $header.'<nav class="litrd-page-bar" aria-label="Website pages"><ul>'.litrd_ordered_navigation().'</ul></nav><div class="litrd-store litrd-shared-search">'.litrd_browse_search_row().'</div>';
+ },$document,1);
+ return $document;
+}
