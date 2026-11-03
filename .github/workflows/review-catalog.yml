@@ -1,0 +1,41 @@
+name: Review catalog destinations
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/review-catalog.yml']
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check the current shop and full-product destinations
+        env:
+          BASIC_USER: ${{ secrets.LITDECALS_BASIC_USER }}
+          BASIC_PASSWORD: ${{ secrets.LITDECALS_BASIC_PASSWORD }}
+        shell: python
+        run: |
+          import base64, os, urllib.request, urllib.error, re, html
+          from html.parser import HTMLParser
+          auth = base64.b64encode((os.environ["BASIC_USER"] + ":" + os.environ["BASIC_PASSWORD"]).encode()).decode()
+          print("::add-mask::" + auth)
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+          opener = urllib.request.build_opener(NoRedirect())
+          origin = "https://litdecals.com/sandbox-redesign/"
+          for path in ("", "shop/", "?post_type=product&s="):
+              req = urllib.request.Request(origin + path, headers={"Authorization":"Basic " + auth, "Cache-Control":"no-cache"})
+              try:
+                  with opener.open(req, timeout=45) as response:
+                      body = response.read(4000000).decode("utf-8", "replace")
+                      titles = [html.unescape(re.sub("<[^>]*>", "", x)).strip() for x in re.findall(r"<h1\\b[^>]*>(.*?)</h1>", body, re.S|re.I)]
+                      links = re.findall(r'<a\\b[^>]*href=["\x27]([^"\x27]+)["\x27][^>]*>\\s*(Browse all products|View the full catalog)', body, re.I)
+                      print({"path":path,"status":response.status,"headings":titles[:4],"catalog_links":links,
+                             "woo_product_titles":body.count("woocommerce-loop-product__title"),
+                             "home_product_cards":body.count('class="litrd-product"'),
+                             "contains_no_results":"No products were found" in body})
+              except urllib.error.HTTPError as error:
+                  print({"path":path,"status":error.code,"redirect":error.headers.get("Location","")})
