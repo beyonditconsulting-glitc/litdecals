@@ -1,0 +1,78 @@
+name: Validate sandbox authentication compatibility
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'connection/litdecals-sandbox-auth.php'
+      - '.github/workflows/check-connector-auth.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Fetch and check the exact compatibility patch
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          curl --fail --silent --show-error "https://raw.githubusercontent.com/beyonditconsulting-glitc/litdecals/$SOURCE_SHA/connection/litdecals-sandbox-auth.php" -o /tmp/litdecals-auth.php
+          php -l /tmp/litdecals-auth.php
+      - name: Test route limits and authentication ordering
+        run: |
+          cat > /tmp/test-litdecals-auth.php <<'PHP'
+          <?php
+          $root = sys_get_temp_dir() . '/litdecals-auth-test/sandbox-redesign';
+          mkdir($root, 0700, true);
+          define('ABSPATH', $root . '/');
+          $filters = array();
+          $ssl = true;
+          $base = 'https://litdecals.com/sandbox-redesign/';
+          function add_filter($name, $callback, $priority = 10) {
+              $GLOBALS['filters'][$name][$priority] = $callback;
+          }
+          function home_url($path) { return $GLOBALS['base']; }
+          function site_url($path) { return $GLOBALS['base']; }
+          function wp_parse_url($url, $component) { return parse_url($url, $component); }
+          function wp_unslash($value) { return stripslashes($value); }
+          function is_ssl() { return $GLOBALS['ssl']; }
+          function rest_get_url_prefix() { return 'wp-json'; }
+          class WP_User { public $ID = 42; }
+          function wp_authenticate_application_password($user, $username, $password) {
+              return $username === 'test-admin' && $password === 'test-password' ? new WP_User() : null;
+          }
+          require '/tmp/litdecals-auth.php';
+          function check($condition, $description) {
+              if (!$condition) { throw new Exception($description); }
+              echo "PASS: " . $description . PHP_EOL;
+          }
+          $_SERVER['REQUEST_URI'] = '/sandbox-redesign/wp-json/litdecals-sandbox/v1/status';
+          $_SERVER['HTTP_X_LITDECALS_AUTHORIZATION'] = 'Basic ' . base64_encode('test-admin:test-password');
+          $authenticate = $filters['determine_current_user'][19];
+          check(litdecals_sandbox_is_connector_request(), 'Connector status route is recognized');
+          check($authenticate(0) === 42, 'Separate header establishes the user before core priority 20');
+          check($authenticate(7) === 7, 'An established user is preserved');
+          $_SERVER['HTTP_X_LITDECALS_AUTHORIZATION'] = 'Basic ' . base64_encode('test-admin:wrong');
+          check(!$authenticate(0), 'Incorrect application password grants no user');
+          $_SERVER['HTTP_X_LITDECALS_AUTHORIZATION'] = 'Basic not-valid-base64!';
+          check(!$authenticate(0), 'Malformed credentials grant no user');
+          $_SERVER['HTTP_X_LITDECALS_AUTHORIZATION'] = 'Basic ' . base64_encode('test-admin:test-password');
+          $_SERVER['REQUEST_URI'] = '/sandbox-redesign/wp-json/wp/v2/users';
+          check(!$authenticate(0), 'Other REST routes remain unaffected');
+          $_SERVER['REQUEST_URI'] = '/wp-json/litdecals-sandbox/v1/status';
+          check(!$authenticate(0), 'The live-site path remains unaffected');
+          $_SERVER['REQUEST_URI'] = '/sandbox-redesign/wp-json/litdecals-sandbox/v1/deploy';
+          $ssl = false;
+          check(!$authenticate(0), 'Plain HTTP is refused');
+          $ssl = true;
+          $base = 'https://litdecals.com/';
+          check(!$authenticate(0), 'Live-site WordPress URL is refused');
+          $base = 'https://litdecals.com/sandbox-redesign/';
+          $_SERVER['REQUEST_URI'] = '/sandbox-redesign/index.php?rest_route=test';
+          $_GET['rest_route'] = '/litdecals-sandbox/v1/preview';
+          check($authenticate(0) === 42, 'The WordPress query-string REST route is supported');
+          unset($_SERVER['HTTP_X_LITDECALS_AUTHORIZATION']);
+          check(!$authenticate(0), 'No custom header leaves authentication unchanged');
+          PHP
+          php /tmp/test-litdecals-auth.php
