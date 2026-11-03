@@ -347,3 +347,15 @@ function litrd_mafia_products_where($where,$query){
  return $where.$wpdb->prepare(" AND {$wpdb->posts}.post_title LIKE %s",'%'.$wpdb->esc_like('mafia').'%');
 }
 add_filter('posts_where','litrd_mafia_products_where',25,2);
+
+function litrd_mafia_product_block($content,$block){
+ if(!litrd_mafia_page() || empty($block['blockName']) || !in_array($block['blockName'],array('woocommerce/all-products','woocommerce/product-collection'),true)){return $content;}
+ $ids=get_posts(array(
+  'post_type'=>'product','post_status'=>'publish','posts_per_page'=>-1,
+  's'=>'mafia','search_columns'=>array('post_title'),'fields'=>'ids',
+  'orderby'=>'title','order'=>'ASC','suppress_filters'=>false
+ ));
+ if(!$ids){return '<p>No Mafia products are currently available.</p>';}
+ return do_shortcode('[products ids="'.implode(',',array_map('absint',$ids)).'" columns="3" limit="-1" orderby="title" order="ASC"]');
+}
+add_filter('render_block','litrd_mafia_product_block',20,2);

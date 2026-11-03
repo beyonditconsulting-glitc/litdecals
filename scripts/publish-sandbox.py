@@ -136,7 +136,7 @@ def main():
             unrelated = [link for link in mafia_page.product_links
                          if 'mafia' not in (link['text'] + ' ' + link['href']).lower()]
             if unrelated:
-                sys.exit('The Mafia page still contains unrelated product links.')
+                sys.exit('The Mafia page still contains unrelated product links: ' + json.dumps(unrelated[:8]))
             for title in ('RC Lipo Battery Savers', 'Lit Decals Mystery Box', '1:1 Car Door Battery Power Sticker'):
                 if title in mafia_html:
                     sys.exit('An unrelated example remains on the Mafia page.')
