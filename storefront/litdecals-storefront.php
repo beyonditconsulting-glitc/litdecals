@@ -349,7 +349,7 @@ function litrd_mafia_products_where($where,$query){
 add_filter('posts_where','litrd_mafia_products_where',25,2);
 
 function litrd_mafia_product_block($content,$block){
- if(!litrd_mafia_page() || empty($block['blockName']) || !in_array($block['blockName'],array('woocommerce/all-products','woocommerce/product-collection'),true)){return $content;}
+ if(!litrd_mafia_page() || empty($block['blockName']) || !in_array($block['blockName'],array('woocommerce/all-products','woocommerce/product-collection','woocommerce/product-tag'),true)){return $content;}
  $ids=get_posts(array(
   'post_type'=>'product','post_status'=>'publish','posts_per_page'=>-1,
   's'=>'mafia','search_columns'=>array('post_title'),'fields'=>'ids',
@@ -359,3 +359,15 @@ function litrd_mafia_product_block($content,$block){
  return do_shortcode('[products ids="'.implode(',',array_map('absint',$ids)).'" columns="3" limit="-1" orderby="title" order="ASC"]');
 }
 add_filter('render_block','litrd_mafia_product_block',20,2);
+
+ 
+// Keep Directory Privacy enabled, but do not challenge again on a successful
+// authenticated WordPress response. Actual 401 responses retain their challenge.
+add_action('send_headers',function(){
+ if(!litrd_sandbox() || !function_exists('header_register_callback')){return;}
+ if(empty($_SERVER['REMOTE_USER']) && empty($_SERVER['PHP_AUTH_USER']) && empty($_SERVER['HTTP_AUTHORIZATION'])){return;}
+ header_register_callback(function(){
+  $status=http_response_code();
+  if($status>=200 && $status<300){header_remove('WWW-Authenticate');}
+ });
+},PHP_INT_MAX);
