@@ -166,3 +166,16 @@ header.litrd-spaced-header .litrd-banner-brand-row>.litrd-blue-header-logo img{d
 @media(max-width:750px){
  #masthead.litrd-spaced-header{padding-top:8px!important;padding-bottom:8px!important}
 }
+
+/* Remove the retired search slot's 30px padding and the theme's branding offset. */
+#masthead.litrd-spaced-header #top-search{display:none!important}
+#masthead.litrd-spaced-header .site-branding{
+ position:static!important;
+ top:auto!important;
+ bottom:auto!important;
+ float:none!important;
+ vertical-align:top!important;
+}
+#masthead.litrd-spaced-header .masthead-container{display:flow-root!important}
+#masthead.litrd-spaced-header #site-navigation:not(:has(a,button,input)),
+#masthead.litrd-spaced-header #slickmenu:not(:has(a,button,input)){display:none!important}
