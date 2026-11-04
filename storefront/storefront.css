@@ -134,3 +134,35 @@ header.litrd-spaced-header .litrd-banner-brand-row>.litrd-blue-header-logo img{d
  .litrd-banner-brand-row{--litrd-brand-logo-width:100px;--litrd-brand-height:50px;--litrd-brand-ad-width:150px;gap:12px!important}
  header.litrd-spaced-header .litrd-blue-brand-row.litrd-banner-brand-row{gap:12px!important}
 }
+
+/* Compact, balanced header spacing; navigation joins the blue masthead. */
+#masthead.litrd-spaced-header{
+ padding-top:18px!important;
+ padding-bottom:18px!important;
+ margin-top:0!important;
+ margin-bottom:0!important;
+ min-height:0!important;
+ height:auto!important;
+ border-bottom:0!important;
+}
+#masthead.litrd-spaced-header .masthead-container,
+#masthead.litrd-spaced-header .site-branding{
+ padding-top:0!important;
+ padding-bottom:0!important;
+ margin-top:0!important;
+ margin-bottom:0!important;
+ min-height:0!important;
+ height:auto!important;
+}
+#masthead.litrd-spaced-header .litrd-banner-brand-row{margin-top:0!important;margin-bottom:0!important}
+#masthead.litrd-spaced-header #top-bar:not(:has(a,button,input)){display:none!important}
+#masthead.litrd-spaced-header+.mega-container,
+#masthead.litrd-spaced-header+.mega-container>#content,
+#masthead.litrd-spaced-header+.mega-container>.site-content{
+ margin-top:0!important;
+ padding-top:0!important;
+}
+#masthead.litrd-spaced-header+.mega-container .litrd-page-bar{margin-top:0!important}
+@media(max-width:750px){
+ #masthead.litrd-spaced-header{padding-top:8px!important;padding-bottom:8px!important}
+}

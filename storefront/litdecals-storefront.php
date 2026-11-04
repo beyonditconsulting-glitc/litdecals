@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Lit Decals Storefront
  * Description: Product-focused sandbox homepage using the original theme header, branding, navigation and footer.
- * Version: 2.7.0
+ * Version: 2.7.1
  * Requires PHP: 7.4
  */
 if(!defined('ABSPATH')){exit;}
@@ -15,8 +15,8 @@ function litrd_sandbox(){
 function litrd_active(){return litrd_sandbox() && is_front_page() && function_exists('wc_get_products') && get_option('litrd_enabled',true);}
 add_action('wp_enqueue_scripts',function(){
  if(!litrd_sandbox() || !function_exists('wc_get_products')){return;}
- wp_enqueue_style('litrd',plugins_url('storefront.css',__FILE__),array(),'2.7.0');
- wp_enqueue_script('litrd-interactions',plugins_url('storefront.js',__FILE__),array(),'2.7.0',true);
+ wp_enqueue_style('litrd',plugins_url('storefront.css',__FILE__),array(),'2.7.1');
+ wp_enqueue_script('litrd-interactions',plugins_url('storefront.js',__FILE__),array(),'2.7.1',true);
 
  $accent=sanitize_hex_color(get_theme_mod('storefront_accent_color','#b52b25'));
  if($accent){wp_add_inline_style('litrd','.litrd-store{--litrd-accent:'.$accent.';}');}
@@ -192,7 +192,7 @@ add_filter('body_class',function($classes){
 },30);
 add_action('wp_enqueue_scripts',function(){
  if(!litrd_sandbox()){return;}
- wp_register_style('litrd-full-width',false,array(),'2.7.0');
+ wp_register_style('litrd-full-width',false,array(),'2.7.1');
  wp_enqueue_style('litrd-full-width');
  wp_add_inline_style('litrd-full-width','
  body.litrd-no-sidebars #secondary,
