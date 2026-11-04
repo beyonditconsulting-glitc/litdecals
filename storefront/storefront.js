@@ -52,6 +52,63 @@
    document.addEventListener('visibilitychange',updateTimer);
    carousel.classList.add('is-ready','is-slideshow');show(0);updateTimer();
   });
+  // Four products at a time, crossfading in place without lateral sliding.
+  document.querySelectorAll('.litrd-products[data-cycle-size]').forEach(function(section){
+   const grid=section.querySelector('.litrd-product-grid');
+   const cards=Array.from(grid.querySelectorAll('.litrd-product'));
+   const size=4,total=Math.ceil(cards.length/size);
+   const controls=section.querySelector('.litrd-products-cycle-controls');
+   if(total<2 || !controls)return;
+   const previous=controls.querySelector('.litrd-products-prev');
+   const next=controls.querySelector('.litrd-products-next');
+   const pause=controls.querySelector('.litrd-products-pause');
+   const status=controls.querySelector('.litrd-products-cycle-status');
+   const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
+   let current=0,paused=motion.matches,timer=null,fade=null,hovering=false,focused=false;
+   let inView=!('IntersectionObserver' in window);
+   controls.hidden=false;
+   function updateTimer(){
+    clearInterval(timer);timer=null;
+    pause.textContent=paused?'Play':'Pause';
+    pause.setAttribute('aria-label',paused?'Start cycling new products':'Pause cycling new products');
+    status.setAttribute('aria-live',paused?'polite':'off');
+    if(!paused && !hovering && !focused && inView && !document.hidden)timer=setInterval(function(){show(current+1,false);},8000);
+   }
+   function paint(index){
+    current=(index+total)%total;
+    cards.forEach(function(card,i){card.hidden=Math.floor(i/size)!==current;});
+    status.textContent=(current*size+1)+'–'+Math.min((current+1)*size,cards.length)+' of '+cards.length;
+    const height=grid.getBoundingClientRect().height;
+    if(height>0)grid.style.minHeight=Math.max(parseFloat(grid.style.minHeight)||0,height)+'px';
+   }
+   function show(index,manual){
+    clearTimeout(fade);fade=null;
+    if(manual)paused=true;
+    if(motion.matches){paint(index);grid.classList.remove('is-changing');updateTimer();return;}
+    grid.classList.add('is-changing');
+    fade=setTimeout(function(){
+     fade=null;
+     if(!manual && (hovering || focused || document.hidden || !inView)){grid.classList.remove('is-changing');updateTimer();return;}
+     paint(index);grid.classList.remove('is-changing');updateTimer();
+    },180);
+   }
+   previous.addEventListener('click',function(){show(current-1,true);});
+   next.addEventListener('click',function(){show(current+1,true);});
+   pause.addEventListener('click',function(){paused=!paused;updateTimer();});
+   grid.addEventListener('mouseenter',function(){hovering=true;updateTimer();});
+   grid.addEventListener('mouseleave',function(){hovering=false;updateTimer();});
+   grid.addEventListener('focusin',function(){focused=true;clearTimeout(fade);fade=null;grid.classList.remove('is-changing');updateTimer();});
+   grid.addEventListener('focusout',function(){setTimeout(function(){focused=grid.contains(document.activeElement);updateTimer();},0);});
+   document.addEventListener('visibilitychange',updateTimer);
+   window.addEventListener('resize',function(){grid.style.minHeight='';paint(current);},{passive:true});
+   if(motion.addEventListener)motion.addEventListener('change',function(){if(motion.matches)paused=true;updateTimer();});
+   if('IntersectionObserver' in window){
+    const observer=new window.IntersectionObserver(function(entries){inView=entries.some(function(entry){return entry.isIntersecting;});updateTimer();},{threshold:.15});
+    observer.observe(section);
+   }
+   paint(0);updateTimer();
+  });
+
   // Fit the approved banner and original logo at exactly the same displayed height.
   function fitHeaderAds(){
    document.querySelectorAll('.litrd-banner-brand-row').forEach(function(row){

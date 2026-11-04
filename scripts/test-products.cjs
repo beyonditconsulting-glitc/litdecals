@@ -1,0 +1,30 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {parseHTML}=require(process.env.LITDECALS_DOM_MODULE);
+function setup(reduced=false,count=12){
+ const {window}=parseHTML('<html><body><section class="litrd-products" data-cycle-size="4"><div class="litrd-product-grid">'+Array.from({length:count},(_,i)=>'<article class="litrd-product"'+(i>=4?' hidden':'')+'>'+i+'</article>').join('')+'</div><div class="litrd-products-cycle-controls" hidden><span class="litrd-products-cycle-status"></span><button class="litrd-products-prev"></button><button class="litrd-products-pause"></button><button class="litrd-products-next"></button></div></section></body></html>');
+ const document=window.document;Object.defineProperty(document,'readyState',{value:'complete'});
+ let hidden=false;Object.defineProperty(document,'hidden',{get:()=>hidden});
+ const intervals=new Map(),timeouts=new Map();let id=0,observer;
+ const motion={matches:reduced,addEventListener(){}},mobile={matches:true,addEventListener(){}};
+ window.matchMedia=q=>q.includes('750px')?mobile:motion;window.scrollY=0;window.requestAnimationFrame=fn=>fn();
+ window.IntersectionObserver=class{constructor(fn){observer=fn;}observe(){}};
+ const grid=document.querySelector('.litrd-product-grid');grid.getBoundingClientRect=()=>({height:400});
+ vm.runInNewContext(fs.readFileSync(__dirname+'/../storefront/storefront.js','utf8'),{window,document,console,setInterval:(fn,ms)=>{assert.equal(ms,8000);intervals.set(++id,fn);return id;},clearInterval:i=>intervals.delete(i),setTimeout:fn=>{timeouts.set(++id,fn);return id;},clearTimeout:i=>timeouts.delete(i)});
+ const flush=()=>{const pending=[...timeouts.values()];timeouts.clear();pending.forEach(fn=>fn());};
+ const visible=()=>[...grid.children].filter(el=>!el.hidden).map(el=>Number(el.textContent));
+ return {window,document,grid,intervals,flush,visible,inView:value=>observer([{isIntersecting:value}]),hide:value=>{hidden=value;document.dispatchEvent(new window.Event('visibilitychange'));},click:cls=>document.querySelector(cls).click()};
+}
+const a=setup();assert.deepEqual(a.visible(),[0,1,2,3]);assert.equal(a.intervals.size,0);
+a.inView(true);assert.equal(a.intervals.size,1);[...a.intervals.values()][0]();a.flush();assert.deepEqual(a.visible(),[4,5,6,7]);
+a.click('.litrd-products-next');a.flush();assert.deepEqual(a.visible(),[8,9,10,11]);assert.equal(a.intervals.size,0);
+a.click('.litrd-products-next');a.flush();assert.deepEqual(a.visible(),[0,1,2,3]);
+a.click('.litrd-products-prev');a.flush();assert.deepEqual(a.visible(),[8,9,10,11]);
+a.click('.litrd-products-pause');assert.equal(a.intervals.size,1);
+a.grid.dispatchEvent(new a.window.Event('mouseenter'));assert.equal(a.intervals.size,0);
+a.grid.dispatchEvent(new a.window.Event('mouseleave'));assert.equal(a.intervals.size,1);
+a.hide(true);assert.equal(a.intervals.size,0);a.hide(false);assert.equal(a.intervals.size,1);
+a.grid.dispatchEvent(new a.window.Event('focusin'));assert.equal(a.intervals.size,0);
+const b=setup(true);b.inView(true);assert.equal(b.intervals.size,0);b.click('.litrd-products-next');assert.deepEqual(b.visible(),[4,5,6,7]);
+const c=setup(false,3);assert.deepEqual(c.visible(),[0,1,2]);assert.equal(c.document.querySelector('.litrd-products-cycle-controls').hidden,true);
+console.log('PASS: Four-product cycling, wraparound, manual pause, hover/focus/offscreen/hidden-page pause, reduced motion, and short collections.');

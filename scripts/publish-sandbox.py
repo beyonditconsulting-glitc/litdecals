@@ -33,9 +33,18 @@ class SiteTitle(HTMLParser):
         self.header_ads = []
         self.header_ad_images = []
         self.header_logos = []
+        self.new_products = 0
+        self.visible_new_products = 0
+        self.product_cycle = False
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
         classes = attributes.get('class', '').split()
+        if tag == 'section' and 'litrd-products' in classes and attributes.get('data-cycle-size') == '4':
+            self.product_cycle = True
+        if tag == 'article' and 'litrd-product' in classes:
+            self.new_products += 1
+            if 'hidden' not in attributes:
+                self.visible_new_products += 1
         if tag == 'a' and 'litrd-header-ad' in classes:
             self.header_ads.append(attributes)
         if tag == 'a' and 'litrd-blue-header-logo' in classes:
@@ -142,6 +151,9 @@ def main():
             if hashlib.sha256(banner_bytes).digest() != hashlib.sha256(approved_banner.read_bytes()).digest():
                 sys.exit('Published banner differs from the selected artwork.')
             print('SUCCESS: Header text removed; original logo and approved linked FINDRC.PARTS banner are published.')
+            if not parser.product_cycle or not parser.new_products or parser.visible_new_products != min(4, parser.new_products):
+                sys.exit('Four-product new arrivals layout verification failed.')
+            print('SUCCESS: New arrivals displays four products initially with cycling enabled.')
             for label in ('Browse all products', 'View the full catalog'):
                 if not any(link['text'].startswith(label) and link['href'] == ORIGIN + '?post_type=product&s=' for link in parser.catalog_links):
                     sys.exit('Catalog destination verification failed: ' + label)

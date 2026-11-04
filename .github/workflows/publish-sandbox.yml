@@ -8,6 +8,7 @@ on:
       - 'scripts/publish-sandbox.py'
       - 'scripts/test-header.php'
       - 'scripts/test-mobile.cjs'
+      - 'scripts/test-products.cjs'
       - 'scripts/test-mafia.php'
       - '.github/workflows/publish-sandbox.yml'
 permissions:
@@ -35,6 +36,7 @@ jobs:
           php scripts/test-mafia.php
           node --check storefront/storefront.js
           node scripts/test-mobile.cjs
+          node scripts/test-products.cjs
           python3 -m py_compile scripts/publish-sandbox.py
       - name: Publish and verify the sandbox header
         env:

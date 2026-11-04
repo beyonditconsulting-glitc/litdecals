@@ -179,3 +179,16 @@ header.litrd-spaced-header .litrd-banner-brand-row>.litrd-blue-header-logo img{d
 #masthead.litrd-spaced-header .masthead-container{display:flow-root!important}
 #masthead.litrd-spaced-header #site-navigation:not(:has(a,button,input)),
 #masthead.litrd-spaced-header #slickmenu:not(:has(a,button,input)){display:none!important}
+
+/* New arrivals: a four-card grid that fades between groups. */
+.litrd-product-grid>.litrd-product[hidden]{display:none!important}
+.litrd-products[data-cycle-size] .litrd-product-grid{transition:opacity 180ms ease;align-content:start}
+.litrd-products[data-cycle-size] .litrd-product-grid.is-changing{opacity:0}
+.litrd-products-cycle-controls{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:20px;padding-top:14px;border-top:1px solid var(--litrd-line)}
+.litrd-products-cycle-controls[hidden]{display:none!important}
+.litrd-products-cycle-controls>div{display:flex;align-items:center;gap:8px}
+.litrd-products-cycle-status{font:600 12px/1.4 Arial,sans-serif;color:#646464}
+.litrd-products-cycle-controls button{min-height:44px;min-width:44px;padding:10px 14px;border:1px solid #c9c9c4;border-radius:3px;background:#fff!important;background-image:none!important;box-shadow:none;color:#152d4a!important;font:600 16px/1 Arial,sans-serif;cursor:pointer}
+.litrd-products-cycle-controls .litrd-products-pause{font-size:12px;min-width:64px}
+.litrd-products-cycle-controls button:focus-visible{outline:3px solid #b52b25;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.litrd-products[data-cycle-size] .litrd-product-grid{transition:none!important}}
