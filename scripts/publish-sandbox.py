@@ -30,8 +30,18 @@ class SiteTitle(HTMLParser):
         self.active_link = None
         self.catalog_links = []
         self.product_links = []
+        self.header_ads = []
+        self.header_ad_images = []
+        self.header_logos = []
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
+        classes = attributes.get('class', '').split()
+        if tag == 'a' and 'litrd-header-ad' in classes:
+            self.header_ads.append(attributes)
+        if tag == 'a' and 'litrd-blue-header-logo' in classes:
+            self.header_logos.append(attributes)
+        if tag == 'img' and 'litrd-header-ad-image' in classes:
+            self.header_ad_images.append(attributes)
         if tag == 'a':
             self.active_link = {'href': attributes.get('href', ''), 'text': []}
         if tag == 'a' and attributes.get('href') == 'https://findrc.parts/':
@@ -121,7 +131,17 @@ def main():
         parser = SiteTitle()
         html = request(ORIGIN + '?litdecals_verify=' + revision + '-' + str(attempt), wordpress_auth=False).decode('utf-8', 'replace')
         parser.feed(html)
-        if parser.titles and all(title == 'Lit Decals' for title in parser.titles):
+        if not parser.titles and parser.header_logos and parser.header_ads and parser.header_ad_images:
+            if parser.header_ads[0].get('href') != 'https://findrc.parts/':
+                sys.exit('Header advertisement destination mismatch.')
+            image_url = parser.header_ad_images[0].get('src', '')
+            if image_url != ORIGIN + '?litrd_header_banner=basher-v1':
+                sys.exit('Header advertisement image endpoint mismatch.')
+            banner_bytes = request(image_url, wordpress_auth=False)
+            approved_banner = Path(__file__).resolve().parent.parent / 'design/findrc-parts-basher.webp'
+            if hashlib.sha256(banner_bytes).digest() != hashlib.sha256(approved_banner.read_bytes()).digest():
+                sys.exit('Published banner differs from the selected artwork.')
+            print('SUCCESS: Header text removed; original logo and approved linked FINDRC.PARTS banner are published.')
             for label in ('Browse all products', 'View the full catalog'):
                 if not any(link['text'].startswith(label) and link['href'] == ORIGIN + '?post_type=product&s=' for link in parser.catalog_links):
                     sys.exit('Catalog destination verification failed: ' + label)
@@ -159,7 +179,7 @@ def main():
                 served = request(ORIGIN + 'wp-content/plugins/litdecals-storefront/' + asset + '?verify=' + revision, wordpress_auth=False)
                 if hashlib.sha256(served).hexdigest() != expected[asset]:
                     sys.exit('Published asset readback mismatch: ' + asset)
-            print('SUCCESS: All four file checksums verified; sandbox preview enabled; visible header reads Lit Decals; served CSS and JavaScript match the published source.')
+            print('SUCCESS: All four file checksums verified; sandbox preview enabled; approved header banner verified; served CSS and JavaScript match the published source.')
             return
         time.sleep(2)
     sys.exit('Files deployed and enabled, but the visible header could not be confirmed. Check the page cache.')

@@ -52,30 +52,30 @@
    document.addEventListener('visibilitychange',updateTimer);
    carousel.classList.add('is-ready','is-slideshow');show(0);updateTimer();
   });
-  const logo=document.querySelector('.litrd-blue-header-logo');
-  if(logo && !logo.closest('.litrd-blue-brand-row')){
-   const parent=logo.parentElement;
-   const header=logo.closest('header') || parent;
-   const title=parent.querySelector('.site-title') || logo.nextElementSibling;
-   if(title && title!==logo && !title.contains(logo)){
-    const description=parent.querySelector('.site-description') || header.querySelector('.site-description');
-    const next=title.nextElementSibling;
-    const fallbackDescription=next && /^(H2|P)$/.test(next.tagName) && /litdecals|online store/i.test(next.textContent)?next:null;
-    const row=document.createElement('div');row.className='litrd-blue-brand-row';
-    const text=document.createElement('div');text.className='litrd-blue-brand-text';
-    logo.before(row);row.appendChild(logo);row.appendChild(text);text.appendChild(title);
-    if(description && !description.contains(row))text.appendChild(description);
-    else if(fallbackDescription)text.appendChild(fallbackDescription);
-   }
+  // Fit the approved banner and original logo at exactly the same displayed height.
+  function fitHeaderAds(){
+   document.querySelectorAll('.litrd-banner-brand-row').forEach(function(row){
+    const logo=row.querySelector('.litrd-blue-header-logo img');
+    const ad=row.querySelector('.litrd-header-ad-image');
+    const width=row.clientWidth;
+    if(!logo || !ad || !width)return;
+    const logoRatio=logo.naturalWidth && logo.naturalHeight?logo.naturalWidth/logo.naturalHeight:220/120;
+    const adRatio=2172/724;
+    const small=window.matchMedia('(max-width: 750px)').matches;
+    const gap=small?12:24;
+    const preferredLogoWidth=small?120:220;
+    const height=Math.max(1,Math.min(preferredLogoWidth/logoRatio,130,(width-gap)/(logoRatio+adRatio),width*.8/adRatio));
+    row.style.setProperty('--litrd-brand-height',height+'px');
+    row.style.setProperty('--litrd-brand-logo-width',(height*logoRatio)+'px');
+    row.style.setProperty('--litrd-brand-ad-width',(height*adRatio)+'px');
+   });
   }
+  document.querySelectorAll('.litrd-banner-brand-row img').forEach(function(image){image.addEventListener('load',fitHeaderAds);});
+  window.addEventListener('resize',fitHeaderAds,{passive:true});
+  fitHeaderAds();
 
   // Progressive mobile navigation: cart and language remain available when closed.
   const mobile=window.matchMedia('(max-width: 750px)');
-  const brandText=document.querySelector('.litrd-blue-brand-text');
-  if(brandText && !brandText.querySelector('.litrd-mobile-tagline')){
-   const tagline=document.createElement('p');tagline.className='litrd-mobile-tagline';
-   tagline.textContent='RC decals, stickers & accessories.';brandText.appendChild(tagline);
-  }
   const nav=document.querySelector('.litrd-page-bar');
   if(nav && !nav.querySelector('.litrd-mobile-menu-toggle')){
    const list=nav.querySelector('ul');

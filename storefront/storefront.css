@@ -121,3 +121,16 @@ header.litrd-spaced-header{padding-top:36px!important;box-sizing:border-box}head
  .litrd-store .litrd-section-title h2{font-size:22px}
  .litrd-section-title>a{font-size:10px}
 }
+
+/* Approved FINDRC.PARTS header advertisement: original artwork, equal image heights. */
+header.litrd-spaced-header .site-branding>#text-title-desc{display:none!important}
+.litrd-banner-brand-row{justify-content:space-between!important;gap:24px!important;min-width:0}
+header.litrd-spaced-header .litrd-banner-brand-row>.litrd-blue-header-logo{flex:0 0 var(--litrd-brand-logo-width,220px)!important;width:var(--litrd-brand-logo-width,220px)!important;max-width:none!important;margin:0!important}
+header.litrd-spaced-header .litrd-banner-brand-row>.litrd-blue-header-logo img{display:block;width:100%!important;height:var(--litrd-brand-height,120px)!important;max-height:none!important;object-fit:contain;object-position:left center!important}
+.litrd-banner-brand-row>.litrd-header-ad{display:block;flex:0 0 auto;margin:0 0 0 auto!important;width:var(--litrd-brand-ad-width,360px);height:var(--litrd-brand-height,120px);max-width:80%;padding:0!important;line-height:0;overflow:hidden}
+.litrd-header-ad .litrd-header-ad-image{display:block;width:100%!important;height:100%!important;max-width:100%;max-height:none!important;object-fit:contain}
+.litrd-header-ad:focus-visible{outline:3px solid #ff7a16;outline-offset:4px}
+@media(max-width:750px){
+ .litrd-banner-brand-row{--litrd-brand-logo-width:100px;--litrd-brand-height:50px;--litrd-brand-ad-width:150px;gap:12px!important}
+ header.litrd-spaced-header .litrd-blue-brand-row.litrd-banner-brand-row{gap:12px!important}
+}

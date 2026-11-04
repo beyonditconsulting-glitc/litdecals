@@ -11,9 +11,11 @@ sandbox connector. Use the connected GitHub tools; secrets are stored in Actions
 must never be printed or added to source. Wait for the Publish LitDecals Sandbox run
 and check its logs before reporting a change as published.
 
-The first publication test requires the visible site-title text to read Lit Decals.
-The title verification in scripts/publish-sandbox.py should be maintained as the
-branding changes. Administration labels and the stored WordPress site name retain
-their existing sandbox identification.
+The approved header keeps the Lit Decals logo, removes the visible site title and
+description, and places design/findrc-parts-basher.webp flush right as a linked ad.
+Logo and ad share the same displayed height; ad width must not exceed 80% of the
+header canvas. Keep the selected artwork intact, without cropping or stretching.
+The image is embedded in the PHP source and served through its versioned sandbox-root
+image endpoint, since the connector accepts exactly four storefront files.
 
 Do not ask the user to upload plugin ZIPs for changes managed by this repository.
