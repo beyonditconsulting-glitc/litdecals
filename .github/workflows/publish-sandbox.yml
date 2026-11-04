@@ -9,7 +9,6 @@ on:
       - 'scripts/test-header.php'
       - 'scripts/test-mobile.cjs'
       - 'scripts/test-mafia.php'
-      - 'scripts/test-auth-repair.php'
       - '.github/workflows/publish-sandbox.yml'
 permissions:
   contents: read
@@ -34,7 +33,6 @@ jobs:
           php -l storefront/home.php
           php scripts/test-header.php
           php scripts/test-mafia.php
-          php scripts/test-auth-repair.php
           node --check storefront/storefront.js
           node scripts/test-mobile.cjs
           python3 -m py_compile scripts/publish-sandbox.py

@@ -123,9 +123,9 @@ def main():
         parser.feed(html)
         if parser.titles and all(title == 'Lit Decals' for title in parser.titles):
             for label in ('Browse all products', 'View the full catalog'):
-                if not any(link['text'].startswith(label) and link['href'] == ORIGIN + 'shop/' for link in parser.catalog_links):
+                if not any(link['text'].startswith(label) and link['href'] == ORIGIN + '?post_type=product&s=' for link in parser.catalog_links):
                     sys.exit('Catalog destination verification failed: ' + label)
-            catalog = request(ORIGIN + 'shop/?litdecals_verify=' + revision, wordpress_auth=False).decode('utf-8', 'replace')
+            catalog = request(ORIGIN + '?post_type=product&s=&litdecals_verify=' + revision, wordpress_auth=False).decode('utf-8', 'replace')
             if 'woocommerce-loop-product__title' not in catalog:
                 sys.exit('The catalog destination did not return a WooCommerce product listing.')
             mafia_html = request(ORIGIN + 'arrma-mafia-shop/?litdecals_verify=' + revision, wordpress_auth=False).decode('utf-8', 'replace')
@@ -142,7 +142,7 @@ def main():
                 if title in mafia_html:
                     sys.exit('An unrelated example remains on the Mafia page.')
             print('SUCCESS: Mafia page contains only Mafia product links; unrelated example products are absent.')
-            print('SUCCESS: Both catalog buttons point to the sandbox shop and the destination returns products.')
+            print('SUCCESS: Both catalog buttons stay at the sandbox root and open the full product listing.')
             if not any('aria-haspopup' not in link for link in parser.findrc_links):
                 sys.exit('Direct FINDRC.PARTS navigation link could not be confirmed.')
             print('SUCCESS: FINDRC.PARTS links directly to https://findrc.parts/.')

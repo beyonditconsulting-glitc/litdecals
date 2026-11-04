@@ -17,5 +17,6 @@ check(litrd_header_without_sandbox($header)===$expected,'Only the visible site t
 check(litrd_header_without_sandbox(str_replace('&mdash;','—',$header))===$expected,'Literal em dash is handled');
 check(litrd_header_without_sandbox(str_replace('&mdash;','&#8212;',$header))===$expected,'Numeric dash entity is handled');
 check(litrd_header_without_sandbox($expected)===$expected,'An already-correct title is preserved');
+check(litrd_catalog_url()==='https://litdecals.com/sandbox-redesign/?post_type=product&s=','The full-catalog link remains in the sandbox root authentication path');
 $GLOBALS['site_path']='/';
 check(litrd_header_without_sandbox($header)===$header,'The production-site URL is excluded');
