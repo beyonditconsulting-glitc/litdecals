@@ -250,7 +250,7 @@ function litrd_header_without_sandbox($header){
 }
 
 function litrd_logo_beside_header_text($header){
- $header=preg_replace('~<(h[1-6]|p)\b[^>]*\bclass=(["\'])[^"\']*\b(?:site-title|site-description)\b[^"\']*\2[^>]*>.*?</\1>~is','',$header);
+ $header=preg_replace('~<([a-zA-Z0-9]+)\b[^>]*\bclass=(["\'])[^"\']*\b(?:site-title|site-description)\b[^"\']*\2[^>]*>.*?</\1>~is','',$header);
  $logo='<a class="litrd-blue-header-logo" href="'.esc_url(home_url('/')).'" aria-label="Lit Decals home"><img src="'.esc_url(litrd_logo_source()).'" alt="Lit Decals" loading="eager" fetchpriority="high"></a>';
  $banner='<a class="litrd-header-ad" href="https://findrc.parts/" aria-label="Find RC parts and compare prices at FINDRC.PARTS"><img class="litrd-header-ad-image" src="'.esc_url(home_url('/?litrd_header_banner=basher-v1')).'" alt="FINDRC.PARTS: RC parts for bashers. Compare prices. Find the best deal. Order from one app." width="2172" height="724" loading="eager" fetchpriority="high"></a>';
  $brand='<div class="litrd-blue-brand-row litrd-banner-brand-row">'.$logo.$banner.'</div>';
