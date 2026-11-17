@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Lit Decals Storefront
  * Description: Product-focused sandbox homepage using the original theme header, branding, navigation and footer.
- * Version: 2.8.0
+ * Version: 2.9.0
  * Requires PHP: 7.4
  */
 if(!defined('ABSPATH')){exit;}
@@ -15,8 +15,8 @@ function litrd_sandbox(){
 function litrd_active(){return litrd_sandbox() && is_front_page() && function_exists('wc_get_products') && get_option('litrd_enabled',true);}
 add_action('wp_enqueue_scripts',function(){
  if(!litrd_sandbox() || !function_exists('wc_get_products')){return;}
- wp_enqueue_style('litrd',plugins_url('storefront.css',__FILE__),array(),'2.8.0');
- wp_enqueue_script('litrd-interactions',plugins_url('storefront.js',__FILE__),array(),'2.8.0',true);
+ wp_enqueue_style('litrd',plugins_url('storefront.css',__FILE__),array(),'2.9.0');
+ wp_enqueue_script('litrd-interactions',plugins_url('storefront.js',__FILE__),array(),'2.9.0',true);
 
  $accent=sanitize_hex_color(get_theme_mod('storefront_accent_color','#b52b25'));
  if($accent){wp_add_inline_style('litrd','.litrd-store{--litrd-accent:'.$accent.';}');}
@@ -116,6 +116,16 @@ function litrd_capture_menu_markup($markup){
 }
 add_filter('wp_nav_menu','litrd_capture_menu_markup',90);
 add_filter('wp_page_menu','litrd_capture_menu_markup',90);
+// Shoptimizer falls back to a plain page list (bypassing wp_nav_menu/wp_page_menu)
+// when no menu is assigned to the primary location, so the capture filters below
+// never see it. Strip it, its duplicated cart marker and its toggle button by their
+// stable wrapper markup instead, regardless of how the theme produced them.
+function litrd_strip_native_navigation($html){
+ $html=preg_replace('~<nav\b[^>]*\bid=["\']site-navigation["\'][^>]*>.*?</nav>~is','',$html);
+ $html=preg_replace('~<nav\b[^>]*\bclass=["\'][^"\']*\bsite-header-cart\b[^"\']*["\'][^>]*>.*?</nav>~is','',$html);
+ $html=preg_replace('~<button\b[^>]*\bclass=["\'][^"\']*\bmenu-toggle\b[^"\']*["\'][^>]*>.*?</button>~is','',$html);
+ return $html;
+}
 function litrd_place_page_links($header){
  $header=preg_replace_callback('~<header\b([^>]*)>~i',function($m){
   $attributes=$m[1];
@@ -126,23 +136,9 @@ function litrd_place_page_links($header){
  },$header,1);
 
  $header=litrd_remove_header_search_cart($header);
+ $header=litrd_strip_native_navigation($header);
  $header=preg_replace('~<img\b[^>]*FreeShipping50-1[^>]*>~i','',$header);
- $menus=isset($GLOBALS['litrd_header_menus'])?array_unique($GLOBALS['litrd_header_menus']):array();
- $items=litrd_ordered_navigation();$target=null;
- foreach($menus as $menu){
- preg_match_all('~<a\b[^>]*>(.*?)</a>~is',$menu,$anchors);
- if(count($anchors[1])===1 && strtolower(trim(wp_strip_all_tags($anchors[1][0])))==='home'){$target=$menu;break;}
- }
- if($target!==null){
- $new=preg_replace_callback('~(<ul\b[^>]*>).*?(</ul>)~is',function($m)use($items){return $m[1].$items.$m[2];},$target,1);
- $header=str_replace($target,$new,$header);
- // Remove the old multi-page header menu only after the destination bar exists.
- foreach($menus as $menu){if($menu===$target){continue;}preg_match_all('~<a\b[^>]*>(.*?)</a>~is',$menu,$anchors);if(count($anchors[1])>=3){$header=str_replace($menu,'',$header);}}
- return $header;
- }
- // If the theme did not expose a HOME-only menu, provide a visible page bar.
- foreach($menus as $menu){preg_match_all('~<a\b[^>]*>(.*?)</a>~is',$menu,$anchors);if(count($anchors[1])>=3){$header=str_replace($menu,'',$header);}}
- return $header.'<nav class="litrd-page-bar" aria-label="Website pages"><ul>'.$items.'</ul></nav>';
+ return $header.'<nav class="litrd-page-bar" aria-label="Website pages"><ul>'.litrd_ordered_navigation().'</ul></nav>';
 }
 
 function litrd_logo_source(){return 'https://litdecals.com/sandbox-redesign/wp-content/uploads/2021/11/Lit-Decals-Logo-1-1.png';}
@@ -192,7 +188,7 @@ add_filter('body_class',function($classes){
 },30);
 add_action('wp_enqueue_scripts',function(){
  if(!litrd_sandbox()){return;}
- wp_register_style('litrd-full-width',false,array(),'2.8.0');
+ wp_register_style('litrd-full-width',false,array(),'2.9.0');
  wp_enqueue_style('litrd-full-width');
  wp_add_inline_style('litrd-full-width','
  body.litrd-no-sidebars #secondary,
@@ -312,6 +308,7 @@ function litrd_browse_search_row(){
  return ob_get_clean();
 }
 function litrd_consistent_inner_page_header($document){
+ $document=litrd_strip_native_navigation($document);
  // Remove the theme's old header-menu output, captured before the footer began.
  $menus=isset($GLOBALS['litrd_header_menus'])?array_unique($GLOBALS['litrd_header_menus']):array();
  usort($menus,function($a,$b){return strlen($b)-strlen($a);});

@@ -180,6 +180,9 @@ header.litrd-spaced-header .litrd-banner-brand-row>.litrd-blue-header-logo img{d
 #masthead.litrd-spaced-header #site-navigation:not(:has(a,button,input)),
 #masthead.litrd-spaced-header #slickmenu:not(:has(a,button,input)){display:none!important}
 
+/* The native page-list navigation is removed server-side; collapse its now-empty wrapper. */
+body.litrd-no-sidebars .col-full-nav{display:none!important}
+
 /* New arrivals: a four-card grid that fades between groups. */
 .litrd-product-grid>.litrd-product[hidden]{display:none!important}
 .litrd-products[data-cycle-size] .litrd-product-grid{transition:opacity 180ms ease;align-content:start}
