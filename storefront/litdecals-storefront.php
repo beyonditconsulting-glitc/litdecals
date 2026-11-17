@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Lit Decals Storefront
  * Description: Product-focused sandbox homepage using the original theme header, branding, navigation and footer.
- * Version: 2.9.0
+ * Version: 2.9.1
  * Requires PHP: 7.4
  */
 if(!defined('ABSPATH')){exit;}
@@ -15,8 +15,8 @@ function litrd_sandbox(){
 function litrd_active(){return litrd_sandbox() && is_front_page() && function_exists('wc_get_products') && get_option('litrd_enabled',true);}
 add_action('wp_enqueue_scripts',function(){
  if(!litrd_sandbox() || !function_exists('wc_get_products')){return;}
- wp_enqueue_style('litrd',plugins_url('storefront.css',__FILE__),array(),'2.9.0');
- wp_enqueue_script('litrd-interactions',plugins_url('storefront.js',__FILE__),array(),'2.9.0',true);
+ wp_enqueue_style('litrd',plugins_url('storefront.css',__FILE__),array(),'2.9.1');
+ wp_enqueue_script('litrd-interactions',plugins_url('storefront.js',__FILE__),array(),'2.9.1',true);
 
  $accent=sanitize_hex_color(get_theme_mod('storefront_accent_color','#b52b25'));
  if($accent){wp_add_inline_style('litrd','.litrd-store{--litrd-accent:'.$accent.';}');}
@@ -188,7 +188,7 @@ add_filter('body_class',function($classes){
 },30);
 add_action('wp_enqueue_scripts',function(){
  if(!litrd_sandbox()){return;}
- wp_register_style('litrd-full-width',false,array(),'2.9.0');
+ wp_register_style('litrd-full-width',false,array(),'2.9.1');
  wp_enqueue_style('litrd-full-width');
  wp_add_inline_style('litrd-full-width','
  body.litrd-no-sidebars #secondary,
@@ -250,7 +250,7 @@ function litrd_header_without_sandbox($header){
 }
 
 function litrd_logo_beside_header_text($header){
- $header=preg_replace('~<(h[1-6]|p)\b[^>]*\bclass=(["\'])[^"\']*\b(?:site-title|site-description)\b[^"\']*\2[^>]*>.*?</\1>~is','',$header);
+ $header=preg_replace('~<([a-zA-Z0-9]+)\b[^>]*\bclass=(["\'])[^"\']*\b(?:site-title|site-description)\b[^"\']*\2[^>]*>.*?</\1>~is','',$header);
  $logo='<a class="litrd-blue-header-logo" href="'.esc_url(home_url('/')).'" aria-label="Lit Decals home"><img src="'.esc_url(litrd_logo_source()).'" alt="Lit Decals" loading="eager" fetchpriority="high"></a>';
  $banner='<a class="litrd-header-ad" href="https://findrc.parts/" aria-label="Find RC parts and compare prices at FINDRC.PARTS"><img class="litrd-header-ad-image" src="'.esc_url(home_url('/?litrd_header_banner=basher-v1')).'" alt="FINDRC.PARTS: RC parts for bashers. Compare prices. Find the best deal. Order from one app." width="2172" height="724" loading="eager" fetchpriority="high"></a>';
  $brand='<div class="litrd-blue-brand-row litrd-banner-brand-row">'.$logo.$banner.'</div>';
