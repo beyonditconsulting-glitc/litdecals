@@ -230,3 +230,19 @@ span.posted_in a{color:#8a8a84}
 .single-product div.quantity input.qty{border-radius:9px;border:1px solid #c9c9c4;font-family:Inter,Arial,sans-serif}
 .single-product .woocommerce-tabs ul.tabs li{border-radius:9px 9px 0 0}
 .single-product .related.products ul.products{margin-top:10px}
+
+/* WooCommerce block-based product grids (Decals, RC Accessories, and any other page
+   built with the Handpicked Products / Product Category block): same card language
+   as the classic ul.products grids above. */
+.wc-block-grid__products{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:30px 18px!important;list-style:none}
+.wc-block-grid__product{width:100%!important;min-width:0!important;margin:0!important}
+.wc-block-grid__product-image{background:#f4f4f1;padding:16px;box-sizing:border-box;overflow:hidden;position:relative;border-radius:14px;box-shadow:0 1px 2px rgba(20,20,20,.05);transition:box-shadow .25s,transform .25s;display:flex;align-items:center;justify-content:center}
+.wc-block-grid__product-image img{max-width:100%!important;width:100%!important;height:auto!important;mix-blend-mode:multiply;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.wc-block-grid__product:hover .wc-block-grid__product-image{transform:translateY(-4px);box-shadow:0 16px 32px rgba(20,20,20,.12)}
+.wc-block-grid__product:hover .wc-block-grid__product-image img{transform:scale(1.05)}
+.wc-block-grid__product-title{font-size:13px!important;font-weight:700!important;letter-spacing:0!important;margin:13px 0 4px!important;color:#232323}
+.wc-block-grid__product-price{font-size:13px!important;color:#232323}
+.wc-block-grid__product-onsale{background:#b52b25!important;color:#fff!important;border-radius:6px!important;font-size:10px!important;font-weight:700!important;min-height:auto!important;line-height:1.6!important;padding:4px 8px!important;top:10px!important;left:10px!important;right:auto!important}
+.wc-block-grid__product-add-to-cart .wp-block-button__link.add_to_cart_button{display:block!important;width:100%!important;background:#1a1a1a!important;background-image:none!important;color:#fff!important;border:0!important;border-radius:9px!important;padding:11px 14px!important;font:700 11px/1.3 Inter,Arial,sans-serif!important;text-transform:uppercase;letter-spacing:.3px;text-align:center;box-shadow:none!important;margin-top:10px!important;transition:background .2s,transform .2s}
+.wc-block-grid__product-add-to-cart .wp-block-button__link.add_to_cart_button:hover{background:#b52b25!important;transform:translateY(-2px)}
+@media(max-width:750px){.wc-block-grid__products{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:24px 13px!important}}
